@@ -49,8 +49,9 @@ export default function AdminDashboardPage() {
     editMasterItem,
   } = useMasterData();
 
-  // Admin Navigation tab
+  // Admin Navigation tab & Mobile Sidebar Drawer
   const [activeTab, setActiveTab] = useState<'overview' | 'jurnal' | 'guru' | 'master'>('jurnal');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Master Data Inputs State
   const [inputMapel, setInputMapel] = useState('');
@@ -184,14 +185,65 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="bg-[#f4f5f5] text-[#1a1c1c] min-h-screen flex font-[Inter]">
-      {/* ══════════════ Desktop Sidebar ══════════════ */}
-      <aside className="w-64 bg-[#005c55] text-white flex flex-col shrink-0 shadow-lg hidden md:flex">
+      {/* ══════════════ Mobile Overlay Drawer ══════════════ */}
+      {isSidebarOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setIsSidebarOpen(false)} />
+          <aside className="relative w-64 bg-[#005c55] text-white flex flex-col shrink-0 shadow-2xl z-10">
+            <div className="p-4 border-b border-[#0f766e]/40 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-white text-[24px]">school</span>
+                <h1 className="font-bold text-base">Admin Dashboard</h1>
+              </div>
+              <button onClick={() => setIsSidebarOpen(false)} className="text-white p-1">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <nav className="flex-grow p-4 flex flex-col gap-2">
+              {[
+                { id: 'jurnal', label: 'Data Jurnal Guru', icon: 'table_chart' },
+                { id: 'overview', label: 'Ringkasan Statistik', icon: 'analytics' },
+                { id: 'guru', label: 'Monitoring Guru', icon: 'groups' },
+                { id: 'master', label: 'Kelola Data Master', icon: 'settings_suggest' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id as any);
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === item.id ? 'bg-white/20 text-white font-semibold' : 'text-[#a3faef]/80'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </nav>
+
+            <div className="p-4 border-t border-[#0f766e]/40 flex flex-col gap-2">
+              <Link
+                href="/riwayat-jurnal"
+                className="text-xs text-[#a3faef] hover:underline flex items-center gap-2 py-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px]">smartphone</span>
+                Tampilan Aplikasi Guru (Mobile)
+              </Link>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* ══════════════ Desktop & Split-Screen Sidebar ══════════════ */}
+      <aside className="w-16 xl:w-64 bg-[#005c55] text-white flex flex-col shrink-0 shadow-lg hidden md:flex transition-all duration-200">
         {/* Brand */}
-        <div className="p-6 border-b border-[#0f766e]/40 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center border border-white/20">
+        <div className="p-4 xl:p-6 border-b border-[#0f766e]/40 flex items-center gap-3 justify-center xl:justify-start">
+          <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
             <span className="material-symbols-outlined text-white text-[24px]">school</span>
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col hidden xl:flex">
             <h1 className="font-bold text-base leading-tight">Jurnal Guru</h1>
             <span className="text-[11px] text-[#a3faef] font-medium tracking-wide">
               ADMIN DASHBOARD
@@ -200,66 +252,39 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-grow p-4 flex flex-col gap-1.5">
-          <button
-            onClick={() => setActiveTab('jurnal')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'jurnal'
-                ? 'bg-white/15 text-white font-semibold border-l-4 border-[#a3faef]'
-                : 'text-[#a3faef]/80 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[20px]">table_chart</span>
-            Data Jurnal Guru
-          </button>
-
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'overview'
-                ? 'bg-white/15 text-white font-semibold border-l-4 border-[#a3faef]'
-                : 'text-[#a3faef]/80 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[20px]">analytics</span>
-            Ringkasan Statistik
-          </button>
-
-          <button
-            onClick={() => setActiveTab('guru')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'guru'
-                ? 'bg-white/15 text-white font-semibold border-l-4 border-[#a3faef]'
-                : 'text-[#a3faef]/80 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[20px]">groups</span>
-            Monitoring Guru
-          </button>
-
-          <button
-            onClick={() => setActiveTab('master')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'master'
-                ? 'bg-white/15 text-white font-semibold border-l-4 border-[#a3faef]'
-                : 'text-[#a3faef]/80 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[20px]">settings_suggest</span>
-            Kelola Data Master
-          </button>
+        <nav className="flex-grow p-2 xl:p-4 flex flex-col gap-1.5">
+          {[
+            { id: 'jurnal', label: 'Data Jurnal Guru', icon: 'table_chart' },
+            { id: 'overview', label: 'Ringkasan Statistik', icon: 'analytics' },
+            { id: 'guru', label: 'Monitoring Guru', icon: 'groups' },
+            { id: 'master', label: 'Kelola Data Master', icon: 'settings_suggest' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id as any)}
+              title={item.label}
+              className={`flex items-center gap-3 px-3 xl:px-4 py-3 rounded-lg text-sm font-medium transition-colors justify-center xl:justify-start ${
+                activeTab === item.id
+                  ? 'bg-white/15 text-white font-semibold border-l-4 border-[#a3faef]'
+                  : 'text-[#a3faef]/80 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px] shrink-0">{item.icon}</span>
+              <span className="hidden xl:inline truncate">{item.label}</span>
+            </button>
+          ))}
         </nav>
 
         {/* Admin Footer */}
-        <div className="p-4 border-t border-[#0f766e]/40 flex flex-col gap-2">
-          <div className="flex items-center gap-3 bg-white/10 p-3 rounded-lg">
+        <div className="p-3 xl:p-4 border-t border-[#0f766e]/40 flex flex-col gap-2">
+          <div className="flex items-center gap-3 bg-white/10 p-2 xl:p-3 rounded-lg justify-center xl:justify-start">
             {user.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photoURL} alt="Admin" className="w-8 h-8 rounded-full border border-white/30" />
+              <img src={user.photoURL} alt="Admin" className="w-8 h-8 rounded-full border border-white/30 shrink-0" />
             ) : (
-              <span className="material-symbols-outlined text-white text-[24px]">account_circle</span>
+              <span className="material-symbols-outlined text-white text-[24px] shrink-0">account_circle</span>
             )}
-            <div className="flex flex-col min-w-0">
+            <div className="flex flex-col min-w-0 hidden xl:flex">
               <span className="text-xs font-semibold truncate">{user.displayName || 'Administrator'}</span>
               <span className="text-[10px] text-[#a3faef] truncate">{user.email}</span>
             </div>
@@ -268,9 +293,10 @@ export default function AdminDashboardPage() {
           <Link
             href="/riwayat-jurnal"
             className="text-xs text-[#a3faef] hover:underline flex items-center justify-center gap-1 py-1.5"
+            title="Tampilan Aplikasi Guru (Mobile)"
           >
-            <span className="material-symbols-outlined text-[14px]">smartphone</span>
-            Tampilan Aplikasi Guru (Mobile)
+            <span className="material-symbols-outlined text-[16px] shrink-0">smartphone</span>
+            <span className="hidden xl:inline">Tampilan Mobile</span>
           </Link>
         </div>
       </aside>
@@ -278,9 +304,16 @@ export default function AdminDashboardPage() {
       {/* ══════════════ Main Content Area ══════════════ */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Top Desktop Bar */}
-        <header className="bg-white border-b border-[#E7E5E4] px-6 h-16 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-[#005c55]">
+        <header className="bg-white border-b border-[#E7E5E4] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-xs gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden text-[#005c55] p-1.5 rounded-lg hover:bg-[#005c55]/10 shrink-0"
+              aria-label="Buka Menu"
+            >
+              <span className="material-symbols-outlined text-[24px]">menu</span>
+            </button>
+            <h2 className="text-sm sm:text-base md:text-lg font-bold text-[#005c55] truncate">
               {activeTab === 'jurnal'
                 ? '📋 Rekapitulasi Jurnal Guru'
                 : activeTab === 'overview'
@@ -291,19 +324,20 @@ export default function AdminDashboardPage() {
             </h2>
 
             {!isAdmin && (
-              <span className="text-xs bg-[#ffdbce] text-[#72361b] px-2.5 py-1 rounded-full font-medium border border-[#ffb598]">
+              <span className="hidden sm:inline-block text-[11px] bg-[#ffdbce] text-[#72361b] px-2 py-0.5 rounded-full font-medium border border-[#ffb598] shrink-0">
                 Mode Pratinjau Admin
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleExportExcel}
-              className="bg-[#005c55] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0f766e] transition-colors flex items-center gap-2 shadow-xs active:scale-95"
+              className="bg-[#005c55] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-[#0f766e] transition-colors flex items-center gap-1.5 shadow-xs active:scale-95 shrink-0"
             >
               <span className="material-symbols-outlined text-[18px]">download</span>
-              Export Excel (.xlsx)
+              <span className="hidden sm:inline">Export Excel (.xlsx)</span>
+              <span className="inline sm:hidden">Excel</span>
             </button>
 
             <button
@@ -311,7 +345,7 @@ export default function AdminDashboardPage() {
                 await signOut();
                 router.replace('/login');
               }}
-              className="border border-[#E7E5E4] text-[#ba1a1a] px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#ffdad6]/20 transition-colors flex items-center gap-1"
+              className="border border-[#E7E5E4] text-[#ba1a1a] px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-[#ffdad6]/20 transition-colors flex items-center gap-1 shrink-0"
               title="Keluar"
             >
               <span className="material-symbols-outlined text-[18px]">logout</span>
@@ -626,10 +660,10 @@ export default function AdminDashboardPage() {
                 </p>
               </div>
 
-              {/* Grid 3 Kolom */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Grid 3 Kolom Responsif */}
+              <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {/* ── 1. Mata Pelajaran ── */}
-                <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+                <div className="bg-white border border-[#E7E5E4] rounded-xl p-4 sm:p-5 shadow-xs flex flex-col gap-4 relative overflow-hidden">
                   <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
                   <div className="flex items-center justify-between border-b border-[#E7E5E4] pb-3">
                     <span className="font-bold text-sm text-[#005c55] flex items-center gap-1.5">
@@ -646,18 +680,18 @@ export default function AdminDashboardPage() {
                       const res = await addMasterItem('mapel', inputMapel);
                       if (res.success) setInputMapel('');
                     }}
-                    className="flex gap-2"
+                    className="flex flex-col sm:flex-row gap-2"
                   >
                     <input
                       type="text"
                       value={inputMapel}
                       onChange={(e) => setInputMapel(e.target.value)}
                       placeholder="Nama mapel baru..."
-                      className="flex-1 px-3 py-1.5 bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg text-xs focus:outline-none focus:border-[#005c55]"
+                      className="min-w-0 flex-1 px-3 py-2 bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg text-xs focus:outline-none focus:border-[#005c55]"
                     />
                     <button
                       type="submit"
-                      className="bg-[#005c55] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0"
+                      className="bg-[#005c55] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0 active:scale-95 transition-transform"
                     >
                       + Tambah
                     </button>
@@ -668,9 +702,9 @@ export default function AdminDashboardPage() {
                     {mapelList.map((item) => (
                       <div
                         key={item}
-                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs"
+                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
                       >
-                        <span className="font-medium text-[#1a1c1c] truncate">{item}</span>
+                        <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => {
@@ -679,7 +713,7 @@ export default function AdminDashboardPage() {
                                 editMasterItem('mapel', item, newName);
                               }
                             }}
-                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1 rounded"
+                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
                             title="Edit"
                           >
                             <span className="material-symbols-outlined text-[16px]">edit</span>
@@ -690,7 +724,7 @@ export default function AdminDashboardPage() {
                                 removeMasterItem('mapel', item);
                               }
                             }}
-                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1 rounded"
+                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
                             title="Hapus"
                           >
                             <span className="material-symbols-outlined text-[16px]">delete</span>
@@ -702,7 +736,7 @@ export default function AdminDashboardPage() {
                 </div>
 
                 {/* ── 2. Kelas ── */}
-                <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+                <div className="bg-white border border-[#E7E5E4] rounded-xl p-4 sm:p-5 shadow-xs flex flex-col gap-4 relative overflow-hidden">
                   <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
                   <div className="flex items-center justify-between border-b border-[#E7E5E4] pb-3">
                     <span className="font-bold text-sm text-[#005c55] flex items-center gap-1.5">
@@ -719,18 +753,18 @@ export default function AdminDashboardPage() {
                       const res = await addMasterItem('kelas', inputKelas);
                       if (res.success) setInputKelas('');
                     }}
-                    className="flex gap-2"
+                    className="flex flex-col sm:flex-row gap-2"
                   >
                     <input
                       type="text"
                       value={inputKelas}
                       onChange={(e) => setInputKelas(e.target.value)}
                       placeholder="Nama kelas baru..."
-                      className="flex-1 px-3 py-1.5 bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg text-xs focus:outline-none focus:border-[#005c55]"
+                      className="min-w-0 flex-1 px-3 py-2 bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg text-xs focus:outline-none focus:border-[#005c55]"
                     />
                     <button
                       type="submit"
-                      className="bg-[#005c55] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0"
+                      className="bg-[#005c55] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0 active:scale-95 transition-transform"
                     >
                       + Tambah
                     </button>
@@ -741,9 +775,9 @@ export default function AdminDashboardPage() {
                     {kelasList.map((item) => (
                       <div
                         key={item}
-                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs"
+                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
                       >
-                        <span className="font-medium text-[#1a1c1c] truncate">{item}</span>
+                        <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => {
@@ -752,7 +786,7 @@ export default function AdminDashboardPage() {
                                 editMasterItem('kelas', item, newName);
                               }
                             }}
-                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1 rounded"
+                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
                             title="Edit"
                           >
                             <span className="material-symbols-outlined text-[16px]">edit</span>
@@ -763,7 +797,7 @@ export default function AdminDashboardPage() {
                                 removeMasterItem('kelas', item);
                               }
                             }}
-                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1 rounded"
+                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
                             title="Hapus"
                           >
                             <span className="material-symbols-outlined text-[16px]">delete</span>
@@ -775,7 +809,7 @@ export default function AdminDashboardPage() {
                 </div>
 
                 {/* ── 3. Ruangan ── */}
-                <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+                <div className="bg-white border border-[#E7E5E4] rounded-xl p-4 sm:p-5 shadow-xs flex flex-col gap-4 relative overflow-hidden">
                   <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
                   <div className="flex items-center justify-between border-b border-[#E7E5E4] pb-3">
                     <span className="font-bold text-sm text-[#005c55] flex items-center gap-1.5">
@@ -792,18 +826,18 @@ export default function AdminDashboardPage() {
                       const res = await addMasterItem('ruang', inputRuang);
                       if (res.success) setInputRuang('');
                     }}
-                    className="flex gap-2"
+                    className="flex flex-col sm:flex-row gap-2"
                   >
                     <input
                       type="text"
                       value={inputRuang}
                       onChange={(e) => setInputRuang(e.target.value)}
                       placeholder="Nama ruangan baru..."
-                      className="flex-1 px-3 py-1.5 bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg text-xs focus:outline-none focus:border-[#005c55]"
+                      className="min-w-0 flex-1 px-3 py-2 bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg text-xs focus:outline-none focus:border-[#005c55]"
                     />
                     <button
                       type="submit"
-                      className="bg-[#005c55] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0"
+                      className="bg-[#005c55] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0 active:scale-95 transition-transform"
                     >
                       + Tambah
                     </button>
@@ -814,9 +848,9 @@ export default function AdminDashboardPage() {
                     {ruangList.map((item) => (
                       <div
                         key={item}
-                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs"
+                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
                       >
-                        <span className="font-medium text-[#1a1c1c] truncate">{item}</span>
+                        <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => {
@@ -825,7 +859,7 @@ export default function AdminDashboardPage() {
                                 editMasterItem('ruang', item, newName);
                               }
                             }}
-                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1 rounded"
+                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
                             title="Edit"
                           >
                             <span className="material-symbols-outlined text-[16px]">edit</span>
@@ -836,7 +870,7 @@ export default function AdminDashboardPage() {
                                 removeMasterItem('ruang', item);
                               }
                             }}
-                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1 rounded"
+                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
                             title="Hapus"
                           >
                             <span className="material-symbols-outlined text-[16px]">delete</span>
