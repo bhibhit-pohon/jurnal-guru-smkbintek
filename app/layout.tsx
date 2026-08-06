@@ -9,11 +9,19 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Jurnal Guru Online | SMK Bintek",
+  title: "Jurnal Guru Online | SMK Bina Teknologi Purwokerto",
   description:
-    "Aplikasi pencatatan jurnal mengajar harian untuk guru SMK Bintek. Catat kehadiran, materi, dan dokumentasi pembelajaran secara digital.",
-  keywords: ["jurnal guru", "SMK", "absensi", "pembelajaran", "e-jurnal"],
-  authors: [{ name: "SMK Bintek" }],
+    "Aplikasi pencatatan jurnal mengajar harian untuk guru SMK Bina Teknologi Purwokerto. Catat kehadiran, materi, dan dokumentasi pembelajaran secara digital.",
+  keywords: ["jurnal guru", "SMK Bina Teknologi Purwokerto", "SMK Bintek", "absensi", "pembelajaran", "e-jurnal"],
+  authors: [{ name: "SMK Bina Teknologi Purwokerto" }],
+  icons: {
+    icon: [
+      { url: "/logo-smk.png" },
+      { url: "/icon.png" },
+    ],
+    shortcut: "/logo-smk.png",
+    apple: "/logo-smk.png",
+  },
 };
 
 export const viewport: Viewport = {
