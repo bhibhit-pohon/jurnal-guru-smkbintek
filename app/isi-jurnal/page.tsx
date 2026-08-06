@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useJournals } from '@/hooks/useJournals';
+import { useMasterData } from '@/hooks/useMasterData';
 import { AppHeaderBrand } from '@/components/layout/AppHeaderBrand';
 import {
   MAPEL_OPTIONS,
@@ -64,10 +65,16 @@ export default function IsiJurnalPage() {
   const router = useRouter();
   const { coords, error: geoError, loading: geoLoading } = useGeolocation();
   const { saveJournal } = useJournals();
+  const { mapelList, kelasList, ruangList } = useMasterData();
 
   const [form, setForm] = useState<JurnalFormState>(INITIAL_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  /* ── Custom Manual Input States ── */
+  const [isCustomMapel, setIsCustomMapel] = useState(false);
+  const [isCustomKelas, setIsCustomKelas] = useState(false);
+  const [isCustomRuang, setIsCustomRuang] = useState(false);
 
   /* ── Attendance edit modal ── */
   const [editingField, setEditingField] = useState<'jumlahHadir' | 'jumlahIzin' | 'jumlahSakit' | 'jumlahAlpha' | null>(null);
@@ -411,49 +418,142 @@ function compressImageFile(
             <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
               Mata Pelajaran <span className="text-[#ba1a1a]">*</span>
             </label>
-            <select
-              value={form.mapel}
-              onChange={(e) => updateField('mapel', e.target.value)}
-              className="bg-white border border-[#E7E5E4] rounded-md px-4 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
-            >
-              <option value="">Pilih Mata Pelajaran</option>
-              {MAPEL_OPTIONS.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
+            {!isCustomMapel ? (
+              <select
+                value={form.mapel}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') {
+                    setIsCustomMapel(true);
+                    updateField('mapel', '');
+                  } else {
+                    updateField('mapel', e.target.value);
+                  }
+                }}
+                className="bg-white border border-[#E7E5E4] rounded-md px-4 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
+              >
+                <option value="">Pilih Mata Pelajaran</option>
+                {mapelList.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+                <option value="__custom__">✏️ + Ketik Manual...</option>
+              </select>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={form.mapel}
+                  onChange={(e) => updateField('mapel', e.target.value)}
+                  placeholder="Ketik nama mata pelajaran..."
+                  className="bg-white border border-[#005c55] rounded-md px-4 py-2 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomMapel(false);
+                    updateField('mapel', '');
+                  }}
+                  className="text-xs text-[#005c55] underline shrink-0 px-2"
+                >
+                  Pilih List
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Kelas + Ruang (side by side) */}
           <div className="grid grid-cols-2 gap-3">
+            {/* Kelas */}
             <div className="flex flex-col gap-1">
               <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
                 Kelas <span className="text-[#ba1a1a]">*</span>
               </label>
-              <select
-                value={form.kelas}
-                onChange={(e) => updateField('kelas', e.target.value)}
-                className="bg-white border border-[#E7E5E4] rounded-md px-3 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
-              >
-                <option value="">Pilih</option>
-                {KELAS_OPTIONS.map((k) => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
+              {!isCustomKelas ? (
+                <select
+                  value={form.kelas}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setIsCustomKelas(true);
+                      updateField('kelas', '');
+                    } else {
+                      updateField('kelas', e.target.value);
+                    }
+                  }}
+                  className="bg-white border border-[#E7E5E4] rounded-md px-3 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
+                >
+                  <option value="">Pilih</option>
+                  {kelasList.map((k) => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                  <option value="__custom__">✏️ + Ketik Manual...</option>
+                </select>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <input
+                    type="text"
+                    value={form.kelas}
+                    onChange={(e) => updateField('kelas', e.target.value)}
+                    placeholder="Ketik kelas..."
+                    className="bg-white border border-[#005c55] rounded-md px-3 py-2 text-sm font-[Inter] text-[#1a1c1c] w-full focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomKelas(false);
+                      updateField('kelas', '');
+                    }}
+                    className="text-[11px] text-[#005c55] underline text-left"
+                  >
+                    Pilih List
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Ruang */}
             <div className="flex flex-col gap-1">
               <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
                 Ruang <span className="text-[#ba1a1a]">*</span>
               </label>
-              <select
-                value={form.ruang}
-                onChange={(e) => updateField('ruang', e.target.value)}
-                className="bg-white border border-[#E7E5E4] rounded-md px-3 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
-              >
-                <option value="">Pilih</option>
-                {RUANG_OPTIONS.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
+              {!isCustomRuang ? (
+                <select
+                  value={form.ruang}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setIsCustomRuang(true);
+                      updateField('ruang', '');
+                    } else {
+                      updateField('ruang', e.target.value);
+                    }
+                  }}
+                  className="bg-white border border-[#E7E5E4] rounded-md px-3 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
+                >
+                  <option value="">Pilih</option>
+                  {ruangList.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                  <option value="__custom__">✏️ + Ketik Manual...</option>
+                </select>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <input
+                    type="text"
+                    value={form.ruang}
+                    onChange={(e) => updateField('ruang', e.target.value)}
+                    placeholder="Ketik ruang..."
+                    className="bg-white border border-[#005c55] rounded-md px-3 py-2 text-sm font-[Inter] text-[#1a1c1c] w-full focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomRuang(false);
+                      updateField('ruang', '');
+                    }}
+                    className="text-[11px] text-[#005c55] underline text-left"
+                  >
+                    Pilih List
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

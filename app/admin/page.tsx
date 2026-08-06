@@ -6,6 +6,7 @@ import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import { useAuth } from '@/hooks/useAuth';
 import { useJournals } from '@/hooks/useJournals';
+import { useMasterData, MasterDataType } from '@/hooks/useMasterData';
 import { isAdminEmail } from '@/lib/firebase';
 import { DUMMY_JOURNALS, SCHOOL_COORDS } from '@/lib/constants';
 import type { JournalEntry } from '@/lib/types';
@@ -38,8 +39,24 @@ export default function AdminDashboardPage() {
     return [...firestoreJournals, ...filteredDummies];
   }, [firestoreJournals]);
 
+  // Master Data Hook
+  const {
+    mapelList,
+    kelasList,
+    ruangList,
+    addMasterItem,
+    removeMasterItem,
+    editMasterItem,
+  } = useMasterData();
+
   // Admin Navigation tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'jurnal' | 'guru'>('jurnal');
+  const [activeTab, setActiveTab] = useState<'overview' | 'jurnal' | 'guru' | 'master'>('jurnal');
+
+  // Master Data Inputs State
+  const [inputMapel, setInputMapel] = useState('');
+  const [inputKelas, setInputKelas] = useState('');
+  const [inputRuang, setInputRuang] = useState('');
+  const [editingItem, setEditingItem] = useState<{ type: MasterDataType; oldValue: string; newValue: string } | null>(null);
 
   // Search and Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -219,6 +236,18 @@ export default function AdminDashboardPage() {
             <span className="material-symbols-outlined text-[20px]">groups</span>
             Monitoring Guru
           </button>
+
+          <button
+            onClick={() => setActiveTab('master')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'master'
+                ? 'bg-white/15 text-white font-semibold border-l-4 border-[#a3faef]'
+                : 'text-[#a3faef]/80 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">settings_suggest</span>
+            Kelola Data Master
+          </button>
         </nav>
 
         {/* Admin Footer */}
@@ -256,7 +285,9 @@ export default function AdminDashboardPage() {
                 ? '📋 Rekapitulasi Jurnal Guru'
                 : activeTab === 'overview'
                 ? '📊 Dashboard Analisis & Statistik'
-                : '👥 Monitoring Kehadiran Guru'}
+                : activeTab === 'guru'
+                ? '👥 Monitoring Kehadiran Guru'
+                : '⚙️ Kelola Data Master Sekolah'}
             </h2>
 
             {!isAdmin && (
@@ -577,6 +608,244 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════ Tab Content 3: Kelola Data Master ═══════════ */}
+          {activeTab === 'master' && (
+            <div className="flex flex-col gap-6">
+              <div className="bg-white border border-[#E7E5E4] rounded-xl p-6 shadow-xs flex flex-col gap-2 relative overflow-hidden">
+                <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                <h3 className="text-base font-bold text-[#005c55] flex items-center gap-2">
+                  <span className="material-symbols-outlined">settings_suggest</span>
+                  Kelola Data Master Sekolah
+                </h3>
+                <p className="text-xs text-[#6e7977]">
+                  Tambah, edit, atau hapus daftar Mata Pelajaran, Kelas, dan Ruangan. Perubahan data di sini langsung terhubung secara <strong>Real-time</strong> ke menu "Isi Jurnal" di HP seluruh guru.
+                </p>
+              </div>
+
+              {/* Grid 3 Kolom */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* ── 1. Mata Pelajaran ── */}
+                <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+                  <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                  <div className="flex items-center justify-between border-b border-[#E7E5E4] pb-3">
+                    <span className="font-bold text-sm text-[#005c55] flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[18px]">menu_book</span>
+                      Mata Pelajaran ({mapelList.length})
+                    </span>
+                  </div>
+
+                  {/* Add Input */}
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!inputMapel.trim()) return;
+                      const res = await addMasterItem('mapel', inputMapel);
+                      if (res.success) setInputMapel('');
+                    }}
+                    className="flex gap-2"
+                  >
+                    <input
+                      type="text"
+                      value={inputMapel}
+                      onChange={(e) => setInputMapel(e.target.value)}
+                      placeholder="Nama mapel baru..."
+                      className="flex-1 px-3 py-1.5 bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg text-xs focus:outline-none focus:border-[#005c55]"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-[#005c55] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0"
+                    >
+                      + Tambah
+                    </button>
+                  </form>
+
+                  {/* Item List */}
+                  <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1">
+                    {mapelList.map((item) => (
+                      <div
+                        key={item}
+                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs"
+                      >
+                        <span className="font-medium text-[#1a1c1c] truncate">{item}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => {
+                              const newName = prompt('Edit Nama Mata Pelajaran:', item);
+                              if (newName && newName.trim() !== item) {
+                                editMasterItem('mapel', item, newName);
+                              }
+                            }}
+                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1 rounded"
+                            title="Edit"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">edit</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Yakin ingin menghapus mapel "${item}"?`)) {
+                                removeMasterItem('mapel', item);
+                              }
+                            }}
+                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1 rounded"
+                            title="Hapus"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── 2. Kelas ── */}
+                <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+                  <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                  <div className="flex items-center justify-between border-b border-[#E7E5E4] pb-3">
+                    <span className="font-bold text-sm text-[#005c55] flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[18px]">school</span>
+                      Kelas ({kelasList.length})
+                    </span>
+                  </div>
+
+                  {/* Add Input */}
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!inputKelas.trim()) return;
+                      const res = await addMasterItem('kelas', inputKelas);
+                      if (res.success) setInputKelas('');
+                    }}
+                    className="flex gap-2"
+                  >
+                    <input
+                      type="text"
+                      value={inputKelas}
+                      onChange={(e) => setInputKelas(e.target.value)}
+                      placeholder="Nama kelas baru..."
+                      className="flex-1 px-3 py-1.5 bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg text-xs focus:outline-none focus:border-[#005c55]"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-[#005c55] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0"
+                    >
+                      + Tambah
+                    </button>
+                  </form>
+
+                  {/* Item List */}
+                  <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1">
+                    {kelasList.map((item) => (
+                      <div
+                        key={item}
+                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs"
+                      >
+                        <span className="font-medium text-[#1a1c1c] truncate">{item}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => {
+                              const newName = prompt('Edit Nama Kelas:', item);
+                              if (newName && newName.trim() !== item) {
+                                editMasterItem('kelas', item, newName);
+                              }
+                            }}
+                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1 rounded"
+                            title="Edit"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">edit</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Yakin ingin menghapus kelas "${item}"?`)) {
+                                removeMasterItem('kelas', item);
+                              }
+                            }}
+                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1 rounded"
+                            title="Hapus"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── 3. Ruangan ── */}
+                <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+                  <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                  <div className="flex items-center justify-between border-b border-[#E7E5E4] pb-3">
+                    <span className="font-bold text-sm text-[#005c55] flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[18px]">meeting_room</span>
+                      Ruangan ({ruangList.length})
+                    </span>
+                  </div>
+
+                  {/* Add Input */}
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!inputRuang.trim()) return;
+                      const res = await addMasterItem('ruang', inputRuang);
+                      if (res.success) setInputRuang('');
+                    }}
+                    className="flex gap-2"
+                  >
+                    <input
+                      type="text"
+                      value={inputRuang}
+                      onChange={(e) => setInputRuang(e.target.value)}
+                      placeholder="Nama ruangan baru..."
+                      className="flex-1 px-3 py-1.5 bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg text-xs focus:outline-none focus:border-[#005c55]"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-[#005c55] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0"
+                    >
+                      + Tambah
+                    </button>
+                  </form>
+
+                  {/* Item List */}
+                  <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1">
+                    {ruangList.map((item) => (
+                      <div
+                        key={item}
+                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs"
+                      >
+                        <span className="font-medium text-[#1a1c1c] truncate">{item}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => {
+                              const newName = prompt('Edit Nama Ruangan:', item);
+                              if (newName && newName.trim() !== item) {
+                                editMasterItem('ruang', item, newName);
+                              }
+                            }}
+                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1 rounded"
+                            title="Edit"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">edit</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Yakin ingin menghapus ruangan "${item}"?`)) {
+                                removeMasterItem('ruang', item);
+                              }
+                            }}
+                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1 rounded"
+                            title="Hapus"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
