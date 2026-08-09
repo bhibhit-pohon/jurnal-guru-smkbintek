@@ -17,29 +17,38 @@ export function useMasterData() {
   useEffect(() => {
     // Listen to Mapel
     const unsubMapel = onSnapshot(doc(db, 'master_data', 'mapel'), (snapshot) => {
-      if (snapshot.exists() && Array.isArray(snapshot.data().list)) {
-        setMapelList(snapshot.data().list);
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (Array.isArray(data.list)) {
+          setMapelList(data.list);
+        }
       } else {
-        // Initialize default if document doesn't exist
-        setDoc(doc(db, 'master_data', 'mapel'), { list: MAPEL_OPTIONS }).catch(() => {});
+        // Initialize default ONLY if document does not exist at all
+        setDoc(doc(db, 'master_data', 'mapel'), { list: MAPEL_OPTIONS, initialized: true }).catch(() => {});
       }
     });
 
     // Listen to Kelas
     const unsubKelas = onSnapshot(doc(db, 'master_data', 'kelas'), (snapshot) => {
-      if (snapshot.exists() && Array.isArray(snapshot.data().list)) {
-        setKelasList(snapshot.data().list);
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (Array.isArray(data.list)) {
+          setKelasList(data.list);
+        }
       } else {
-        setDoc(doc(db, 'master_data', 'kelas'), { list: KELAS_OPTIONS }).catch(() => {});
+        setDoc(doc(db, 'master_data', 'kelas'), { list: KELAS_OPTIONS, initialized: true }).catch(() => {});
       }
     });
 
     // Listen to Ruang
     const unsubRuang = onSnapshot(doc(db, 'master_data', 'ruang'), (snapshot) => {
-      if (snapshot.exists() && Array.isArray(snapshot.data().list)) {
-        setRuangList(snapshot.data().list);
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (Array.isArray(data.list)) {
+          setRuangList(data.list);
+        }
       } else {
-        setDoc(doc(db, 'master_data', 'ruang'), { list: RUANG_OPTIONS }).catch(() => {});
+        setDoc(doc(db, 'master_data', 'ruang'), { list: RUANG_OPTIONS, initialized: true }).catch(() => {});
       }
       setLoading(false);
     });
@@ -51,7 +60,17 @@ export function useMasterData() {
     };
   }, []);
 
-  // Add Item to Master Data
+  // Explicit Save Entire Master List to Firestore
+  const saveMasterList = useCallback(async (type: MasterDataType, newList: string[]) => {
+    try {
+      await setDoc(doc(db, 'master_data', type), { list: newList, initialized: true });
+      return { success: true as const };
+    } catch (err: any) {
+      return { success: false as const, error: err.message || 'Gagal menyimpan data master.' };
+    }
+  }, []);
+
+  // Add Item to Master Data (Direct save)
   const addMasterItem = useCallback(async (type: MasterDataType, value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return { success: false as const, error: 'Nilai tidak boleh kosong.' };
@@ -62,42 +81,25 @@ export function useMasterData() {
     }
 
     const updatedList = [...currentList, trimmed];
-    try {
-      await setDoc(doc(db, 'master_data', type), { list: updatedList }, { merge: true });
-      return { success: true as const };
-    } catch (err: any) {
-      return { success: false as const, error: err.message || 'Gagal menambahkan data.' };
-    }
-  }, [mapelList, kelasList, ruangList]);
+    return saveMasterList(type, updatedList);
+  }, [mapelList, kelasList, ruangList, saveMasterList]);
 
-  // Remove Item from Master Data
+  // Remove Item from Master Data (Direct save)
   const removeMasterItem = useCallback(async (type: MasterDataType, value: string) => {
     const currentList = type === 'mapel' ? mapelList : type === 'kelas' ? kelasList : ruangList;
     const updatedList = currentList.filter((item) => item !== value);
+    return saveMasterList(type, updatedList);
+  }, [mapelList, kelasList, ruangList, saveMasterList]);
 
-    try {
-      await setDoc(doc(db, 'master_data', type), { list: updatedList }, { merge: true });
-      return { success: true as const };
-    } catch (err: any) {
-      return { success: false as const, error: err.message || 'Gagal menghapus data.' };
-    }
-  }, [mapelList, kelasList, ruangList]);
-
-  // Edit Item in Master Data
+  // Edit Item in Master Data (Direct save)
   const editMasterItem = useCallback(async (type: MasterDataType, oldValue: string, newValue: string) => {
     const trimmed = newValue.trim();
     if (!trimmed) return { success: false as const, error: 'Nilai tidak boleh kosong.' };
 
     const currentList = type === 'mapel' ? mapelList : type === 'kelas' ? kelasList : ruangList;
     const updatedList = currentList.map((item) => (item === oldValue ? trimmed : item));
-
-    try {
-      await setDoc(doc(db, 'master_data', type), { list: updatedList }, { merge: true });
-      return { success: true as const };
-    } catch (err: any) {
-      return { success: false as const, error: err.message || 'Gagal mengedit data.' };
-    }
-  }, [mapelList, kelasList, ruangList]);
+    return saveMasterList(type, updatedList);
+  }, [mapelList, kelasList, ruangList, saveMasterList]);
 
   return {
     mapelList,
@@ -107,5 +109,6 @@ export function useMasterData() {
     addMasterItem,
     removeMasterItem,
     editMasterItem,
+    saveMasterList,
   };
 }

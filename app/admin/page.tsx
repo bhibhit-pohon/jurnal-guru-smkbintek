@@ -47,11 +47,18 @@ export default function AdminDashboardPage() {
     addMasterItem,
     removeMasterItem,
     editMasterItem,
+    saveMasterList,
   } = useMasterData();
 
   // Admin Navigation tab & Mobile Sidebar Drawer
   const [activeTab, setActiveTab] = useState<'overview' | 'jurnal' | 'guru' | 'master'>('jurnal');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   // Master Data Inputs State
   const [inputMapel, setInputMapel] = useState('');
@@ -120,6 +127,52 @@ export default function AdminDashboardPage() {
       todayCount: todayJournals.length,
       totalTeachers: Math.max(uniqueTeachers.size, 12),
       avgAttendance,
+    };
+  }, [allJournals]);
+
+  /* ── Weekday & Attendance Breakdown Stats ── */
+  const weekdayStats = useMemo(() => {
+    const days = [
+      { name: 'Senin', count: 0 },
+      { name: 'Selasa', count: 0 },
+      { name: 'Rabu', count: 0 },
+      { name: 'Kamis', count: 0 },
+      { name: 'Jumat', count: 0 },
+    ];
+
+    allJournals.forEach((j) => {
+      const d = new Date(j.createdAt);
+      const dayIdx = d.getDay(); // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri
+      if (dayIdx >= 1 && dayIdx <= 5) {
+        days[dayIdx - 1].count += 1;
+      }
+    });
+
+    const maxCount = Math.max(...days.map((d) => d.count), 1);
+    return days.map((d) => ({
+      ...d,
+      heightPercent: Math.max(Math.round((d.count / maxCount) * 100), 12),
+    }));
+  }, [allJournals]);
+
+  const attendanceBreakdown = useMemo(() => {
+    const totalHadir = allJournals.reduce((acc, j) => acc + j.jumlahHadir, 0);
+    const totalSakit = allJournals.reduce((acc, j) => acc + j.jumlahSakit, 0);
+    const totalIzin = allJournals.reduce((acc, j) => acc + j.jumlahIzin, 0);
+    const totalAlpha = allJournals.reduce((acc, j) => acc + j.jumlahAlpha, 0);
+    const totalAll = totalHadir + totalSakit + totalIzin + totalAlpha;
+
+    const getPercent = (val: number) => (totalAll > 0 ? Math.round((val / totalAll) * 100) : 0);
+
+    return {
+      totalHadir,
+      totalSakit,
+      totalIzin,
+      totalAlpha,
+      hadirPct: getPercent(totalHadir),
+      sakitPct: getPercent(totalSakit),
+      izinPct: getPercent(totalIzin),
+      alphaPct: getPercent(totalAlpha),
     };
   }, [allJournals]);
 
@@ -410,6 +463,152 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
+          {/* ═══════════ Tab Content 0: Overview Analytics & Charts ═══════════ */}
+          {activeTab === 'overview' && (
+            <div className="flex flex-col gap-6">
+              {/* Row 1: Grafik Tren Pengisian Jurnal Harian (Bar Chart) */}
+              <div className="bg-white border border-[#E7E5E4] rounded-xl p-6 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+                <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                <div className="flex items-center justify-between border-b border-[#E7E5E4] pb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-[#005c55] flex items-center gap-2">
+                      <span className="material-symbols-outlined">bar_chart</span>
+                      Grafik Tren Pengisian Jurnal Mengajar Harian (Senin – Jumat)
+                    </h3>
+                    <p className="text-xs text-[#6e7977] mt-0.5">
+                      Statistik aktivitas pengisian jurnal harian oleh guru-guru SMK Bina Teknologi.
+                    </p>
+                  </div>
+                  <span className="text-xs bg-[#005c55]/10 text-[#005c55] px-3 py-1 rounded-full font-semibold">
+                    Minggu Berjalan
+                  </span>
+                </div>
+
+                {/* SVG/HTML Bar Chart */}
+                <div className="pt-6 pb-2 flex items-end justify-between gap-3 sm:gap-6 h-64 border-b border-[#E7E5E4] px-4">
+                  {weekdayStats.map((day) => (
+                    <div key={day.name} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
+                      <span className="text-xs font-bold text-[#005c55] bg-[#005c55]/10 px-2 py-0.5 rounded opacity-80 group-hover:opacity-100 transition-opacity">
+                        {day.count} Jurnal
+                      </span>
+                      <div className="w-full max-w-[48px] bg-[#E7E5E4] rounded-t-lg flex items-end overflow-hidden h-full">
+                        <div
+                          style={{ height: `${day.heightPercent}%` }}
+                          className="w-full bg-gradient-to-t from-[#005c55] to-[#0f766e] rounded-t-lg transition-all duration-500 group-hover:from-[#0f766e] group-hover:to-[#80d5cb]"
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-[#3e4947] mt-1">{day.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Row 2: Grid 2 Kolom (Distribution & Live Activity Feed) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* 🍰 Breakdown Kehadiran Siswa */}
+                <div className="bg-white border border-[#E7E5E4] rounded-xl p-6 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+                  <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                  <div className="border-b border-[#E7E5E4] pb-3">
+                    <h3 className="text-base font-bold text-[#005c55] flex items-center gap-2">
+                      <span className="material-symbols-outlined">pie_chart</span>
+                      Distribusi Kehadiran Siswa
+                    </h3>
+                    <p className="text-xs text-[#6e7977] mt-0.5">Rasio kumulatif status kehadiran seluruh kelas.</p>
+                  </div>
+
+                  <div className="flex flex-col gap-3 py-2">
+                    {/* Hadir */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-[#005c55] flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#005c55]" /> Hadir
+                        </span>
+                        <span>{attendanceBreakdown.totalHadir} siswa ({attendanceBreakdown.hadirPct}%)</span>
+                      </div>
+                      <div className="w-full h-3 bg-[#E7E5E4] rounded-full overflow-hidden">
+                        <div style={{ width: `${attendanceBreakdown.hadirPct}%` }} className="h-full bg-[#005c55] rounded-full transition-all duration-500" />
+                      </div>
+                    </div>
+
+                    {/* Sakit */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-[#d97706] flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#d97706]" /> Sakit
+                        </span>
+                        <span>{attendanceBreakdown.totalSakit} siswa ({attendanceBreakdown.sakitPct}%)</span>
+                      </div>
+                      <div className="w-full h-3 bg-[#E7E5E4] rounded-full overflow-hidden">
+                        <div style={{ width: `${attendanceBreakdown.sakitPct}%` }} className="h-full bg-[#d97706] rounded-full transition-all duration-500" />
+                      </div>
+                    </div>
+
+                    {/* Izin */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-[#2563eb] flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#2563eb]" /> Izin
+                        </span>
+                        <span>{attendanceBreakdown.totalIzin} siswa ({attendanceBreakdown.izinPct}%)</span>
+                      </div>
+                      <div className="w-full h-3 bg-[#E7E5E4] rounded-full overflow-hidden">
+                        <div style={{ width: `${attendanceBreakdown.izinPct}%` }} className="h-full bg-[#2563eb] rounded-full transition-all duration-500" />
+                      </div>
+                    </div>
+
+                    {/* Alpha */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-[#dc2626] flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#dc2626]" /> Alpha
+                        </span>
+                        <span>{attendanceBreakdown.totalAlpha} siswa ({attendanceBreakdown.alphaPct}%)</span>
+                      </div>
+                      <div className="w-full h-3 bg-[#E7E5E4] rounded-full overflow-hidden">
+                        <div style={{ width: `${attendanceBreakdown.alphaPct}%` }} className="h-full bg-[#dc2626] rounded-full transition-all duration-500" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ⚡ Activity Stream (Jurnal Terbaru) */}
+                <div className="bg-white border border-[#E7E5E4] rounded-xl p-6 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+                  <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                  <div className="border-b border-[#E7E5E4] pb-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-[#005c55] flex items-center gap-2">
+                        <span className="material-symbols-outlined">schedule</span>
+                        Aktivitas Pengisian Terkini
+                      </h3>
+                      <p className="text-xs text-[#6e7977] mt-0.5">Jurnal mengajar terbaru yang di-input guru.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    {allJournals.slice(0, 4).map((j, idx) => (
+                      <div key={j.id || idx} className="flex items-center gap-3 p-2.5 rounded-lg bg-[#F5F5F4]/60 border border-[#E7E5E4]">
+                        <div className="w-9 h-9 rounded-full bg-[#005c55]/10 text-[#005c55] font-bold text-sm flex items-center justify-center border border-[#005c55]/20 shrink-0">
+                          {(j as any).displayName?.[0] || 'G'}
+                        </div>
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-xs text-[#1a1c1c] truncate">
+                              {(j as any).displayName || (j as any).email || 'Guru SMK Bintek'}
+                            </span>
+                            <span className="text-[10px] text-[#6e7977]">{j.createdAt.split('T')[0]}</span>
+                          </div>
+                          <span className="text-xs text-[#005c55] truncate font-medium">
+                            {j.mapel} • Kelas {j.kelas} (Ruang {j.ruang})
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ═══════════ Tab Content 1: Data Jurnal Table ═══════════ */}
           {activeTab === 'jurnal' && (
             <div className="bg-white border border-[#E7E5E4] rounded-xl shadow-xs flex flex-col overflow-hidden">
@@ -668,7 +867,7 @@ export default function AdminDashboardPage() {
                   <div className="flex items-center justify-between border-b border-[#E7E5E4] pb-3">
                     <span className="font-bold text-sm text-[#005c55] flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-[18px]">menu_book</span>
-                      Mata Pelajaran ({mapelList.length})
+                      Mata Pelajaran
                     </span>
                   </div>
 
@@ -699,39 +898,63 @@ export default function AdminDashboardPage() {
 
                   {/* Item List */}
                   <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1">
-                    {mapelList.map((item) => (
-                      <div
-                        key={item}
-                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
-                      >
-                        <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => {
-                              const newName = prompt('Edit Nama Mata Pelajaran:', item);
-                              if (newName && newName.trim() !== item) {
-                                editMasterItem('mapel', item, newName);
-                              }
-                            }}
-                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
-                            title="Edit"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">edit</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Yakin ingin menghapus mapel "${item}"?`)) {
-                                removeMasterItem('mapel', item);
-                              }
-                            }}
-                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
-                            title="Hapus"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">delete</span>
-                          </button>
+                    {mapelList.length === 0 ? (
+                      <p className="text-xs text-[#6e7977] italic py-4 text-center">Belum ada mata pelajaran. Silakan tambahkan baru.</p>
+                    ) : (
+                      mapelList.map((item) => (
+                        <div
+                          key={item}
+                          className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
+                        >
+                          <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => {
+                                const newName = prompt('Edit Nama Mata Pelajaran:', item);
+                                if (newName && newName.trim() !== item) {
+                                  editMasterItem('mapel', item, newName);
+                                }
+                              }}
+                              className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
+                              title="Edit"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">edit</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Yakin ingin menghapus mapel "${item}"?`)) {
+                                  removeMasterItem('mapel', item);
+                                }
+                              }}
+                              className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
+                              title="Hapus"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">delete</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
+                  </div>
+
+                  {/* Explicit Save Button */}
+                  <div className="border-t border-[#E7E5E4] pt-3 flex items-center justify-between mt-auto">
+                    <span className="text-[11px] font-medium text-[#6e7977]">{mapelList.length} item terdaftar</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const res = await saveMasterList('mapel', mapelList);
+                        if (res.success) {
+                          showToast('Data master Mata Pelajaran berhasil disimpan!', 'success');
+                        } else {
+                          showToast(res.error || 'Gagal menyimpan data master', 'error');
+                        }
+                      }}
+                      className="bg-[#005c55] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">save</span>
+                      Simpan Perubahan
+                    </button>
                   </div>
                 </div>
 
@@ -741,7 +964,7 @@ export default function AdminDashboardPage() {
                   <div className="flex items-center justify-between border-b border-[#E7E5E4] pb-3">
                     <span className="font-bold text-sm text-[#005c55] flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-[18px]">school</span>
-                      Kelas ({kelasList.length})
+                      Kelas
                     </span>
                   </div>
 
@@ -772,39 +995,63 @@ export default function AdminDashboardPage() {
 
                   {/* Item List */}
                   <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1">
-                    {kelasList.map((item) => (
-                      <div
-                        key={item}
-                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
-                      >
-                        <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => {
-                              const newName = prompt('Edit Nama Kelas:', item);
-                              if (newName && newName.trim() !== item) {
-                                editMasterItem('kelas', item, newName);
-                              }
-                            }}
-                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
-                            title="Edit"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">edit</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Yakin ingin menghapus kelas "${item}"?`)) {
-                                removeMasterItem('kelas', item);
-                              }
-                            }}
-                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
-                            title="Hapus"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">delete</span>
-                          </button>
+                    {kelasList.length === 0 ? (
+                      <p className="text-xs text-[#6e7977] italic py-4 text-center">Belum ada kelas. Silakan tambahkan baru.</p>
+                    ) : (
+                      kelasList.map((item) => (
+                        <div
+                          key={item}
+                          className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
+                        >
+                          <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => {
+                                const newName = prompt('Edit Nama Kelas:', item);
+                                if (newName && newName.trim() !== item) {
+                                  editMasterItem('kelas', item, newName);
+                                }
+                              }}
+                              className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
+                              title="Edit"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">edit</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Yakin ingin menghapus kelas "${item}"?`)) {
+                                  removeMasterItem('kelas', item);
+                                }
+                              }}
+                              className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
+                              title="Hapus"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">delete</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
+                  </div>
+
+                  {/* Explicit Save Button */}
+                  <div className="border-t border-[#E7E5E4] pt-3 flex items-center justify-between mt-auto">
+                    <span className="text-[11px] font-medium text-[#6e7977]">{kelasList.length} item terdaftar</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const res = await saveMasterList('kelas', kelasList);
+                        if (res.success) {
+                          showToast('Data master Kelas berhasil disimpan!', 'success');
+                        } else {
+                          showToast(res.error || 'Gagal menyimpan data master', 'error');
+                        }
+                      }}
+                      className="bg-[#005c55] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">save</span>
+                      Simpan Perubahan
+                    </button>
                   </div>
                 </div>
 
@@ -814,7 +1061,7 @@ export default function AdminDashboardPage() {
                   <div className="flex items-center justify-between border-b border-[#E7E5E4] pb-3">
                     <span className="font-bold text-sm text-[#005c55] flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-[18px]">meeting_room</span>
-                      Ruangan ({ruangList.length})
+                      Ruangan
                     </span>
                   </div>
 
@@ -845,39 +1092,63 @@ export default function AdminDashboardPage() {
 
                   {/* Item List */}
                   <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1">
-                    {ruangList.map((item) => (
-                      <div
-                        key={item}
-                        className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
-                      >
-                        <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => {
-                              const newName = prompt('Edit Nama Ruangan:', item);
-                              if (newName && newName.trim() !== item) {
-                                editMasterItem('ruang', item, newName);
-                              }
-                            }}
-                            className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
-                            title="Edit"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">edit</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Yakin ingin menghapus ruangan "${item}"?`)) {
-                                removeMasterItem('ruang', item);
-                              }
-                            }}
-                            className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
-                            title="Hapus"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">delete</span>
-                          </button>
+                    {ruangList.length === 0 ? (
+                      <p className="text-xs text-[#6e7977] italic py-4 text-center">Belum ada ruangan. Silakan tambahkan baru.</p>
+                    ) : (
+                      ruangList.map((item) => (
+                        <div
+                          key={item}
+                          className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
+                        >
+                          <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => {
+                                const newName = prompt('Edit Nama Ruangan:', item);
+                                if (newName && newName.trim() !== item) {
+                                  editMasterItem('ruang', item, newName);
+                                }
+                              }}
+                              className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
+                              title="Edit"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">edit</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Yakin ingin menghapus ruangan "${item}"?`)) {
+                                  removeMasterItem('ruang', item);
+                                }
+                              }}
+                              className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
+                              title="Hapus"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">delete</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
+                  </div>
+
+                  {/* Explicit Save Button */}
+                  <div className="border-t border-[#E7E5E4] pt-3 flex items-center justify-between mt-auto">
+                    <span className="text-[11px] font-medium text-[#6e7977]">{ruangList.length} item terdaftar</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const res = await saveMasterList('ruang', ruangList);
+                        if (res.success) {
+                          showToast('Data master Ruangan berhasil disimpan!', 'success');
+                        } else {
+                          showToast(res.error || 'Gagal menyimpan data master', 'error');
+                        }
+                      }}
+                      className="bg-[#005c55] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">save</span>
+                      Simpan Perubahan
+                    </button>
                   </div>
                 </div>
               </div>
