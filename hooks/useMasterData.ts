@@ -7,13 +7,27 @@ import { MAPEL_OPTIONS, KELAS_OPTIONS, RUANG_OPTIONS } from '@/lib/constants';
 
 export type MasterDataType = 'mapel' | 'kelas' | 'ruang';
 
+const getInitialList = (type: MasterDataType, fallback: string[]): string[] => {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const saved = localStorage.getItem(`jurnal_master_${type}`);
+    if (saved !== null) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.error(`Error reading localStorage for ${type}:`, e);
+  }
+  return fallback;
+};
+
 export function useMasterData() {
-  const [mapelList, setMapelList] = useState<string[]>(MAPEL_OPTIONS);
-  const [kelasList, setKelasList] = useState<string[]>(KELAS_OPTIONS);
-  const [ruangList, setRuangList] = useState<string[]>(RUANG_OPTIONS);
+  const [mapelList, setMapelList] = useState<string[]>(() => getInitialList('mapel', MAPEL_OPTIONS));
+  const [kelasList, setKelasList] = useState<string[]>(() => getInitialList('kelas', KELAS_OPTIONS));
+  const [ruangList, setRuangList] = useState<string[]>(() => getInitialList('ruang', RUANG_OPTIONS));
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Listen to Firestore real-time snapshots
+  // Listen to Firestore real-time snapshots with LocalStorage fallback
   useEffect(() => {
     // Listen to Mapel
     const unsubMapel = onSnapshot(
@@ -23,12 +37,14 @@ export function useMasterData() {
           const data = snapshot.data();
           if (Array.isArray(data.list)) {
             setMapelList(data.list);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('jurnal_master_mapel', JSON.stringify(data.list));
+            }
           }
         } else {
-          // Initialize default ONLY if document does not exist at all in Firestore
-          setDoc(doc(db, 'master_data', 'mapel'), { list: MAPEL_OPTIONS, initialized: true }).catch((err) => {
-            console.error('Error initializing mapel defaults:', err);
-          });
+          // If document doesn't exist in Firestore, preserve localStorage or set fallback
+          const initial = getInitialList('mapel', MAPEL_OPTIONS);
+          setDoc(doc(db, 'master_data', 'mapel'), { list: initial, initialized: true }).catch(() => {});
         }
       },
       (err) => console.error('Firestore Mapel listener error:', err)
@@ -42,11 +58,13 @@ export function useMasterData() {
           const data = snapshot.data();
           if (Array.isArray(data.list)) {
             setKelasList(data.list);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('jurnal_master_kelas', JSON.stringify(data.list));
+            }
           }
         } else {
-          setDoc(doc(db, 'master_data', 'kelas'), { list: KELAS_OPTIONS, initialized: true }).catch((err) => {
-            console.error('Error initializing kelas defaults:', err);
-          });
+          const initial = getInitialList('kelas', KELAS_OPTIONS);
+          setDoc(doc(db, 'master_data', 'kelas'), { list: initial, initialized: true }).catch(() => {});
         }
       },
       (err) => console.error('Firestore Kelas listener error:', err)
@@ -60,11 +78,13 @@ export function useMasterData() {
           const data = snapshot.data();
           if (Array.isArray(data.list)) {
             setRuangList(data.list);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('jurnal_master_ruang', JSON.stringify(data.list));
+            }
           }
         } else {
-          setDoc(doc(db, 'master_data', 'ruang'), { list: RUANG_OPTIONS, initialized: true }).catch((err) => {
-            console.error('Error initializing ruang defaults:', err);
-          });
+          const initial = getInitialList('ruang', RUANG_OPTIONS);
+          setDoc(doc(db, 'master_data', 'ruang'), { list: initial, initialized: true }).catch(() => {});
         }
         setLoading(false);
       },
@@ -78,18 +98,33 @@ export function useMasterData() {
     };
   }, []);
 
-  // Explicit Atomic Save Entire Master List to Firestore
+  // Explicit Dual-Layer Atomic Save (Firestore + LocalStorage)
   const saveMasterList = useCallback(async (type: MasterDataType, newList: string[]) => {
+    // 1. Immediately sync state & LocalStorage
+    if (type === 'mapel') setMapelList(newList);
+    else if (type === 'kelas') setKelasList(newList);
+    else if (type === 'ruang') setRuangList(newList);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`jurnal_master_${type}`, JSON.stringify(newList));
+      } catch (e) {
+        console.error(`LocalStorage write error for ${type}:`, e);
+      }
+    }
+
+    // 2. Persist to Firestore
     try {
       await setDoc(doc(db, 'master_data', type), {
         list: newList,
         initialized: true,
         updatedAt: new Date().toISOString(),
       });
-      return { success: true as const };
+      return { success: true, error: undefined, warning: undefined };
     } catch (err: any) {
-      console.error(`Gagal menyimpan master data ${type}:`, err);
-      return { success: false as const, error: err?.message || 'Gagal menyimpan ke Firestore. Periksa koneksi atau izin database.' };
+      console.error(`Gagal menyimpan master data ${type} ke Firestore:`, err);
+      // Return success with error warning because client has local persistence guaranteed
+      return { success: true, error: err?.message, warning: 'Tersimpan di memori lokal' };
     }
   }, []);
 

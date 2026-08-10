@@ -64,15 +64,14 @@ export default function AdminDashboardPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Sync Firestore master data to local draft once loaded
+  // Sync master data (from LocalStorage/Firestore) to local draft
   useEffect(() => {
-    if (!masterLoading && !isDraftInitialized) {
+    if (!masterLoading) {
       setDraftMapel(mapelList);
       setDraftKelas(kelasList);
       setDraftRuang(ruangList);
-      setIsDraftInitialized(true);
     }
-  }, [mapelList, kelasList, ruangList, masterLoading, isDraftInitialized]);
+  }, [mapelList, kelasList, ruangList, masterLoading]);
 
   // Master Data Local Draft Handlers with Toast Feedback
   const handleAddMaster = (type: MasterDataType, value: string) => {
@@ -312,7 +311,34 @@ export default function AdminDashboardPage() {
   if (!user) return null;
 
   return (
-    <div className="bg-[#f4f5f5] text-[#1a1c1c] min-h-screen flex font-[Inter]">
+    <div className="bg-[#f4f5f5] text-[#1a1c1c] min-h-screen flex font-[Inter] relative">
+      {/* ══════════════ Floating Toast Notification ══════════════ */}
+      {toast && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-md w-full px-4 transition-all duration-300">
+          <div
+            className={`flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl text-sm font-semibold text-white border border-white/20 backdrop-blur-md ${
+              toast.type === 'error'
+                ? 'bg-[#ba1a1a]'
+                : toast.type === 'success'
+                ? 'bg-[#005c55]'
+                : 'bg-[#0f766e]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[22px] shrink-0">
+              {toast.type === 'error' ? 'error' : toast.type === 'success' ? 'check_circle' : 'info'}
+            </span>
+            <span className="flex-1 leading-snug">{toast.message}</span>
+            <button
+              onClick={() => setToast(null)}
+              className="p-1 hover:bg-white/20 rounded-lg transition-colors shrink-0"
+              aria-label="Tutup Notifikasi"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ══════════════ Mobile Overlay Drawer ══════════════ */}
       {isSidebarOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
