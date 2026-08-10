@@ -44,11 +44,15 @@ export default function AdminDashboardPage() {
     mapelList,
     kelasList,
     ruangList,
-    addMasterItem,
-    removeMasterItem,
-    editMasterItem,
+    loading: masterLoading,
     saveMasterList,
   } = useMasterData();
+
+  // Local Draft States for Master Data
+  const [draftMapel, setDraftMapel] = useState<string[]>([]);
+  const [draftKelas, setDraftKelas] = useState<string[]>([]);
+  const [draftRuang, setDraftRuang] = useState<string[]>([]);
+  const [isDraftInitialized, setIsDraftInitialized] = useState(false);
 
   // Admin Navigation tab & Mobile Sidebar Drawer
   const [activeTab, setActiveTab] = useState<'overview' | 'jurnal' | 'guru' | 'master'>('jurnal');
@@ -58,6 +62,77 @@ export default function AdminDashboardPage() {
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  // Sync Firestore master data to local draft once loaded
+  useEffect(() => {
+    if (!masterLoading && !isDraftInitialized) {
+      setDraftMapel(mapelList);
+      setDraftKelas(kelasList);
+      setDraftRuang(ruangList);
+      setIsDraftInitialized(true);
+    }
+  }, [mapelList, kelasList, ruangList, masterLoading, isDraftInitialized]);
+
+  // Master Data Local Draft Handlers with Toast Feedback
+  const handleAddMaster = (type: MasterDataType, value: string) => {
+    const trimmed = value.trim();
+    const label = type === 'mapel' ? 'Mata Pelajaran' : type === 'kelas' ? 'Kelas' : 'Ruangan';
+    if (!trimmed) {
+      showToast(`Nama ${label.toLowerCase()} tidak boleh kosong!`, 'error');
+      return false;
+    }
+
+    const currentDraft = type === 'mapel' ? draftMapel : type === 'kelas' ? draftKelas : draftRuang;
+    if (currentDraft.some((item) => item.toLowerCase() === trimmed.toLowerCase())) {
+      showToast(`Item "${trimmed}" sudah ada di draf ${label}!`, 'error');
+      return false;
+    }
+
+    if (type === 'mapel') setDraftMapel((prev) => [...prev, trimmed]);
+    else if (type === 'kelas') setDraftKelas((prev) => [...prev, trimmed]);
+    else setDraftRuang((prev) => [...prev, trimmed]);
+
+    showToast(`📌 "${trimmed}" ditambahkan ke draf. Klik "Simpan Perubahan" untuk mengunci.`, 'info');
+    return true;
+  };
+
+  const handleEditMaster = (type: MasterDataType, oldVal: string) => {
+    const label = type === 'mapel' ? 'Mata Pelajaran' : type === 'kelas' ? 'Kelas' : 'Ruangan';
+    const newName = prompt(`Edit Nama ${label}:`, oldVal);
+    if (newName && newName.trim() && newName.trim() !== oldVal) {
+      const trimmed = newName.trim();
+      if (type === 'mapel') setDraftMapel((prev) => prev.map((x) => (x === oldVal ? trimmed : x)));
+      else if (type === 'kelas') setDraftKelas((prev) => prev.map((x) => (x === oldVal ? trimmed : x)));
+      else setDraftRuang((prev) => prev.map((x) => (x === oldVal ? trimmed : x)));
+
+      showToast(`✏️ Perubahan "${oldVal}" ➔ "${trimmed}" disimpan di draf.`, 'info');
+    }
+  };
+
+  const handleRemoveMaster = (type: MasterDataType, item: string) => {
+    const label = type === 'mapel' ? 'Mata Pelajaran' : type === 'kelas' ? 'Kelas' : 'Ruangan';
+    if (confirm(`Yakin ingin menghapus ${label.toLowerCase()} "${item}" dari draf?`)) {
+      if (type === 'mapel') setDraftMapel((prev) => prev.filter((x) => x !== item));
+      else if (type === 'kelas') setDraftKelas((prev) => prev.filter((x) => x !== item));
+      else setDraftRuang((prev) => prev.filter((x) => x !== item));
+
+      showToast(`🗑️ "${item}" dihapus dari draf. Klik "Simpan Perubahan" untuk menyimpan.`, 'info');
+    }
+  };
+
+  const handleSaveMaster = async (type: MasterDataType) => {
+    const listToSave = type === 'mapel' ? draftMapel : type === 'kelas' ? draftKelas : draftRuang;
+    const label = type === 'mapel' ? 'Mata Pelajaran' : type === 'kelas' ? 'Kelas' : 'Ruangan';
+
+    showToast(`Memproses penyimpanan ${listToSave.length} data ${label} ke Firestore...`, 'info');
+    const res = await saveMasterList(type, listToSave);
+
+    if (res.success) {
+      showToast(`✅ Berhasil! ${listToSave.length} data ${label} telah tersimpan permanen di database Firestore!`, 'success');
+    } else {
+      showToast(`⚠️ Gagal menyimpan ${label}: ${res.error}`, 'error');
+    }
   };
 
   // Master Data Inputs State
@@ -869,15 +944,18 @@ export default function AdminDashboardPage() {
                       <span className="material-symbols-outlined text-[18px]">menu_book</span>
                       Mata Pelajaran
                     </span>
+                    <span className="text-[11px] bg-[#005c55]/10 text-[#005c55] font-semibold px-2.5 py-0.5 rounded-full">
+                      {draftMapel.length} Item
+                    </span>
                   </div>
 
                   {/* Add Input */}
                   <form
-                    onSubmit={async (e) => {
+                    onSubmit={(e) => {
                       e.preventDefault();
-                      if (!inputMapel.trim()) return;
-                      const res = await addMasterItem('mapel', inputMapel);
-                      if (res.success) setInputMapel('');
+                      if (handleAddMaster('mapel', inputMapel)) {
+                        setInputMapel('');
+                      }
                     }}
                     className="flex flex-col sm:flex-row gap-2"
                   >
@@ -890,18 +968,18 @@ export default function AdminDashboardPage() {
                     />
                     <button
                       type="submit"
-                      className="bg-[#005c55] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0 active:scale-95 transition-transform"
+                      className="bg-[#005c55] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0 active:scale-95 transition-transform flex items-center justify-center gap-1"
                     >
-                      + Tambah
+                      <span>+</span> Tambah
                     </button>
                   </form>
 
                   {/* Item List */}
                   <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1">
-                    {mapelList.length === 0 ? (
+                    {draftMapel.length === 0 ? (
                       <p className="text-xs text-[#6e7977] italic py-4 text-center">Belum ada mata pelajaran. Silakan tambahkan baru.</p>
                     ) : (
-                      mapelList.map((item) => (
+                      draftMapel.map((item) => (
                         <div
                           key={item}
                           className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
@@ -909,24 +987,17 @@ export default function AdminDashboardPage() {
                           <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
-                              onClick={() => {
-                                const newName = prompt('Edit Nama Mata Pelajaran:', item);
-                                if (newName && newName.trim() !== item) {
-                                  editMasterItem('mapel', item, newName);
-                                }
-                              }}
-                              className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
+                              type="button"
+                              onClick={() => handleEditMaster('mapel', item)}
+                              className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded transition-colors"
                               title="Edit"
                             >
                               <span className="material-symbols-outlined text-[16px]">edit</span>
                             </button>
                             <button
-                              onClick={() => {
-                                if (confirm(`Yakin ingin menghapus mapel "${item}"?`)) {
-                                  removeMasterItem('mapel', item);
-                                }
-                              }}
-                              className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
+                              type="button"
+                              onClick={() => handleRemoveMaster('mapel', item)}
+                              className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded transition-colors"
                               title="Hapus"
                             >
                               <span className="material-symbols-outlined text-[16px]">delete</span>
@@ -939,17 +1010,10 @@ export default function AdminDashboardPage() {
 
                   {/* Explicit Save Button */}
                   <div className="border-t border-[#E7E5E4] pt-3 flex items-center justify-between mt-auto">
-                    <span className="text-[11px] font-medium text-[#6e7977]">{mapelList.length} item terdaftar</span>
+                    <span className="text-[11px] font-medium text-[#6e7977]">{draftMapel.length} draf mapel</span>
                     <button
                       type="button"
-                      onClick={async () => {
-                        const res = await saveMasterList('mapel', mapelList);
-                        if (res.success) {
-                          showToast('Data master Mata Pelajaran berhasil disimpan!', 'success');
-                        } else {
-                          showToast(res.error || 'Gagal menyimpan data master', 'error');
-                        }
-                      }}
+                      onClick={() => handleSaveMaster('mapel')}
                       className="bg-[#005c55] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
                     >
                       <span className="material-symbols-outlined text-[16px]">save</span>
@@ -966,15 +1030,18 @@ export default function AdminDashboardPage() {
                       <span className="material-symbols-outlined text-[18px]">school</span>
                       Kelas
                     </span>
+                    <span className="text-[11px] bg-[#005c55]/10 text-[#005c55] font-semibold px-2.5 py-0.5 rounded-full">
+                      {draftKelas.length} Item
+                    </span>
                   </div>
 
                   {/* Add Input */}
                   <form
-                    onSubmit={async (e) => {
+                    onSubmit={(e) => {
                       e.preventDefault();
-                      if (!inputKelas.trim()) return;
-                      const res = await addMasterItem('kelas', inputKelas);
-                      if (res.success) setInputKelas('');
+                      if (handleAddMaster('kelas', inputKelas)) {
+                        setInputKelas('');
+                      }
                     }}
                     className="flex flex-col sm:flex-row gap-2"
                   >
@@ -987,18 +1054,18 @@ export default function AdminDashboardPage() {
                     />
                     <button
                       type="submit"
-                      className="bg-[#005c55] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0 active:scale-95 transition-transform"
+                      className="bg-[#005c55] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0 active:scale-95 transition-transform flex items-center justify-center gap-1"
                     >
-                      + Tambah
+                      <span>+</span> Tambah
                     </button>
                   </form>
 
                   {/* Item List */}
                   <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1">
-                    {kelasList.length === 0 ? (
+                    {draftKelas.length === 0 ? (
                       <p className="text-xs text-[#6e7977] italic py-4 text-center">Belum ada kelas. Silakan tambahkan baru.</p>
                     ) : (
-                      kelasList.map((item) => (
+                      draftKelas.map((item) => (
                         <div
                           key={item}
                           className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
@@ -1006,24 +1073,17 @@ export default function AdminDashboardPage() {
                           <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
-                              onClick={() => {
-                                const newName = prompt('Edit Nama Kelas:', item);
-                                if (newName && newName.trim() !== item) {
-                                  editMasterItem('kelas', item, newName);
-                                }
-                              }}
-                              className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
+                              type="button"
+                              onClick={() => handleEditMaster('kelas', item)}
+                              className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded transition-colors"
                               title="Edit"
                             >
                               <span className="material-symbols-outlined text-[16px]">edit</span>
                             </button>
                             <button
-                              onClick={() => {
-                                if (confirm(`Yakin ingin menghapus kelas "${item}"?`)) {
-                                  removeMasterItem('kelas', item);
-                                }
-                              }}
-                              className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
+                              type="button"
+                              onClick={() => handleRemoveMaster('kelas', item)}
+                              className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded transition-colors"
                               title="Hapus"
                             >
                               <span className="material-symbols-outlined text-[16px]">delete</span>
@@ -1036,17 +1096,10 @@ export default function AdminDashboardPage() {
 
                   {/* Explicit Save Button */}
                   <div className="border-t border-[#E7E5E4] pt-3 flex items-center justify-between mt-auto">
-                    <span className="text-[11px] font-medium text-[#6e7977]">{kelasList.length} item terdaftar</span>
+                    <span className="text-[11px] font-medium text-[#6e7977]">{draftKelas.length} draf kelas</span>
                     <button
                       type="button"
-                      onClick={async () => {
-                        const res = await saveMasterList('kelas', kelasList);
-                        if (res.success) {
-                          showToast('Data master Kelas berhasil disimpan!', 'success');
-                        } else {
-                          showToast(res.error || 'Gagal menyimpan data master', 'error');
-                        }
-                      }}
+                      onClick={() => handleSaveMaster('kelas')}
                       className="bg-[#005c55] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
                     >
                       <span className="material-symbols-outlined text-[16px]">save</span>
@@ -1063,15 +1116,18 @@ export default function AdminDashboardPage() {
                       <span className="material-symbols-outlined text-[18px]">meeting_room</span>
                       Ruangan
                     </span>
+                    <span className="text-[11px] bg-[#005c55]/10 text-[#005c55] font-semibold px-2.5 py-0.5 rounded-full">
+                      {draftRuang.length} Item
+                    </span>
                   </div>
 
                   {/* Add Input */}
                   <form
-                    onSubmit={async (e) => {
+                    onSubmit={(e) => {
                       e.preventDefault();
-                      if (!inputRuang.trim()) return;
-                      const res = await addMasterItem('ruang', inputRuang);
-                      if (res.success) setInputRuang('');
+                      if (handleAddMaster('ruang', inputRuang)) {
+                        setInputRuang('');
+                      }
                     }}
                     className="flex flex-col sm:flex-row gap-2"
                   >
@@ -1084,18 +1140,18 @@ export default function AdminDashboardPage() {
                     />
                     <button
                       type="submit"
-                      className="bg-[#005c55] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0 active:scale-95 transition-transform"
+                      className="bg-[#005c55] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-[#0f766e] shrink-0 active:scale-95 transition-transform flex items-center justify-center gap-1"
                     >
-                      + Tambah
+                      <span>+</span> Tambah
                     </button>
                   </form>
 
                   {/* Item List */}
                   <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto pr-1">
-                    {ruangList.length === 0 ? (
+                    {draftRuang.length === 0 ? (
                       <p className="text-xs text-[#6e7977] italic py-4 text-center">Belum ada ruangan. Silakan tambahkan baru.</p>
                     ) : (
-                      ruangList.map((item) => (
+                      draftRuang.map((item) => (
                         <div
                           key={item}
                           className="flex items-center justify-between p-2 rounded-lg bg-[#F5F5F4]/60 hover:bg-[#F5F5F4] border border-[#E7E5E4] text-xs min-w-0"
@@ -1103,24 +1159,17 @@ export default function AdminDashboardPage() {
                           <span className="font-medium text-[#1a1c1c] truncate flex-1 mr-2">{item}</span>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
-                              onClick={() => {
-                                const newName = prompt('Edit Nama Ruangan:', item);
-                                if (newName && newName.trim() !== item) {
-                                  editMasterItem('ruang', item, newName);
-                                }
-                              }}
-                              className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded"
+                              type="button"
+                              onClick={() => handleEditMaster('ruang', item)}
+                              className="text-[#005c55] hover:bg-[#005c55]/10 p-1.5 rounded transition-colors"
                               title="Edit"
                             >
                               <span className="material-symbols-outlined text-[16px]">edit</span>
                             </button>
                             <button
-                              onClick={() => {
-                                if (confirm(`Yakin ingin menghapus ruangan "${item}"?`)) {
-                                  removeMasterItem('ruang', item);
-                                }
-                              }}
-                              className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded"
+                              type="button"
+                              onClick={() => handleRemoveMaster('ruang', item)}
+                              className="text-[#ba1a1a] hover:bg-[#ffdad6]/40 p-1.5 rounded transition-colors"
                               title="Hapus"
                             >
                               <span className="material-symbols-outlined text-[16px]">delete</span>
@@ -1133,17 +1182,10 @@ export default function AdminDashboardPage() {
 
                   {/* Explicit Save Button */}
                   <div className="border-t border-[#E7E5E4] pt-3 flex items-center justify-between mt-auto">
-                    <span className="text-[11px] font-medium text-[#6e7977]">{ruangList.length} item terdaftar</span>
+                    <span className="text-[11px] font-medium text-[#6e7977]">{draftRuang.length} draf ruangan</span>
                     <button
                       type="button"
-                      onClick={async () => {
-                        const res = await saveMasterList('ruang', ruangList);
-                        if (res.success) {
-                          showToast('Data master Ruangan berhasil disimpan!', 'success');
-                        } else {
-                          showToast(res.error || 'Gagal menyimpan data master', 'error');
-                        }
-                      }}
+                      onClick={() => handleSaveMaster('ruang')}
                       className="bg-[#005c55] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0f766e] flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
                     >
                       <span className="material-symbols-outlined text-[16px]">save</span>
