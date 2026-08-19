@@ -282,29 +282,35 @@ function compressImageFile(file: File): Promise<string> {
       }
     }
 
-    if (sigRef.current && !sigRef.current.isEmpty() && !form.tandaTangan) {
-      saveSignature();
+    // Capture signature synchronously from canvas if present
+    let currentSignature = form.tandaTangan;
+    if (!currentSignature && sigRef.current && !sigRef.current.isEmpty()) {
+      try {
+        currentSignature = sigRef.current.toDataURL('image/png');
+      } catch (e) {
+        console.warn('Canvas signature read warning:', e);
+      }
     }
 
     setIsSaving(true);
     setSaveStep('uploading');
     try {
       const payload = {
-        mapel: form.mapel,
-        kelas: form.kelas,
-        ruang: form.ruang,
-        jamMulai: form.jamMulai!,
-        jamSelesai: form.jamSelesai!,
-        jumlahHadir: form.jumlahHadir,
-        jumlahIzin: form.jumlahIzin,
-        jumlahSakit: form.jumlahSakit,
-        jumlahAlpha: form.jumlahAlpha,
-        namaSiswaAbsen: form.namaSiswaAbsen,
-        catatan: form.catatan,
-        tandaTangan: form.tandaTangan,
-        fotoKelas: form.fotoKelas,
-        lokasi: coords,
-        lokasiValid: isWithinRadius,
+        mapel: form.mapel || '',
+        kelas: form.kelas || '',
+        ruang: form.ruang || '',
+        jamMulai: form.jamMulai ?? 1,
+        jamSelesai: form.jamSelesai ?? 1,
+        jumlahHadir: Number(form.jumlahHadir) || 0,
+        jumlahIzin: Number(form.jumlahIzin) || 0,
+        jumlahSakit: Number(form.jumlahSakit) || 0,
+        jumlahAlpha: Number(form.jumlahAlpha) || 0,
+        namaSiswaAbsen: form.namaSiswaAbsen || '',
+        catatan: form.catatan || '',
+        tandaTangan: currentSignature || null,
+        fotoKelas: form.fotoKelas || null,
+        lokasi: coords ? { latitude: coords.latitude, longitude: coords.longitude } : null,
+        lokasiValid: Boolean(isWithinRadius),
         jarakDariSekolah: distance ? Math.round(distance) : 0,
         uid: user.uid,
         displayName: user.displayName || 'Guru',

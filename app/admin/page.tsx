@@ -23,23 +23,8 @@ export default function AdminDashboardPage() {
     true
   );
 
-  // Combine Firestore journals with DUMMY_JOURNALS for rich demonstration data
-  const allJournals = useMemo(() => {
-    const fsIds = new Set(firestoreJournals.map((j) => j.id));
-    const uniqueDummies = DUMMY_JOURNALS.map((d) => ({
-      ...d,
-      displayName: d.mapel.includes('Matematika')
-        ? 'Teguh Prasetyo, S.Pd'
-        : d.mapel.includes('Inggris')
-        ? 'Siti Nurhaliza, M.Pd'
-        : d.mapel.includes('Teknik')
-        ? 'Budi Santoso, S.Kom'
-        : 'Guru SMK Bintek',
-      email: 'guru@smkbintek.sch.id',
-    }));
-    const filteredDummies = uniqueDummies.filter((d) => !fsIds.has(d.id));
-    return [...firestoreJournals, ...filteredDummies];
-  }, [firestoreJournals]);
+  // Admin view uses real Firestore journals
+  const allJournals = firestoreJournals;
 
   // Master Data Hook
   const {
