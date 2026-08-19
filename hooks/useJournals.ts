@@ -64,19 +64,15 @@ export function useJournals(uid?: string, isAdmin = false) {
 
     let q;
     if (isAdmin) {
-      // Admin: lihat 100 jurnal terbaru — cukup untuk dashboard, mencegah scan koleksi penuh
+      // Admin: ambil semua jurnal (limit besar), urutkan di client JS untuk menghindari index/type mismatch
       q = query(
-        collection(db, 'journals'),
-        orderBy('createdAt', 'desc'),
-        limit(100)
+        collection(db, 'journals')
       );
     } else {
-      // Guru: hanya jurnal milik sendiri, max 200
+      // Guru: query where uid saja
       q = query(
         collection(db, 'journals'),
-        where('uid', '==', uid),
-        orderBy('createdAt', 'desc'),
-        limit(200)
+        where('uid', '==', uid)
       );
     }
 
@@ -113,7 +109,17 @@ export function useJournals(uid?: string, isAdmin = false) {
             ...(d.email && { email: d.email }),
           } as JournalEntry;
         });
-        setJournals(data);
+
+        // Urutkan terbaru di JavaScript
+        data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        // Admin: limit array di memory agar tidak terlalu berat (opsional)
+        if (isAdmin) {
+          setJournals(data.slice(0, 500));
+        } else {
+          setJournals(data);
+        }
+        
         setLoading(false);
         setError(null);
       },
@@ -130,9 +136,11 @@ export function useJournals(uid?: string, isAdmin = false) {
   // Simpan jurnal baru
   const saveJournal = useCallback(async (payload: CreateJournalPayload) => {
     try {
+      // Gunakan ISO string lokal daripada serverTimestamp untuk mencegah promise hang 
+      // saat jaringan sekolah sedang lambat atau memblokir WebSocket.
       const docRef = await addDoc(collection(db, 'journals'), {
         ...payload,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
       });
       console.log('✅ Jurnal disimpan:', docRef.id);
       return { success: true as const, id: docRef.id };
