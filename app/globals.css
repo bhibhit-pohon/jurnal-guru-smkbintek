@@ -89,6 +89,156 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.18 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.18 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.65 0.2 165);
+  --primary-foreground: oklch(0.145 0 0);
+  --secondary: oklch(0.24 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.24 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.24 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(0.28 0 0);
+  --input: oklch(0.28 0 0);
+  --ring: oklch(0.65 0.2 165);
+  --sidebar: oklch(0.16 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.65 0.2 165);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.24 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.28 0 0);
+  --sidebar-ring: oklch(0.65 0.2 165);
+}
+
+/* Global Dark Mode Smooth Overrides */
+.dark .bg-\[\#f9f9f8\],
+.dark .bg-\[\#f4f5f5\] {
+  background-color: #121414 !important;
+}
+
+.dark .bg-\[\#F5F5F4\] {
+  background-color: #1a1d1d !important;
+}
+
+.dark .bg-white {
+  background-color: #1e2222 !important;
+}
+
+.dark .text-\[\#1a1c1c\] {
+  color: #f1f5f5 !important;
+}
+
+.dark .text-\[\#3e4947\] {
+  color: #c4d0ce !important;
+}
+
+.dark .text-\[\#6e7977\] {
+  color: #92a09e !important;
+}
+
+.dark .border-\[\#E7E5E4\],
+.dark .border-\[\#bdc9c6\] {
+  border-color: #2b3131 !important;
+}
+
+.dark .text-\[\#005c55\],
+.dark .text-\[\#0f766e\] {
+  color: #2dd4bf !important;
+}
+
+.dark .bg-\[\#0f766e\]\/10 {
+  background-color: rgba(45, 212, 191, 0.12) !important;
+}
+
+.dark .bg-\[\#e8e8e7\] {
+  background-color: #2a2f2f !important;
+}
+
+.dark .hover\:bg-\[\#e8e8e7\]:hover,
+.dark .hover\:bg-\[\#eeeeed\]:hover,
+.dark .hover\:bg-\[\#F5F5F4\]:hover,
+.dark .hover\:bg-\[\#f3f4f3\]:hover {
+  background-color: #262b2b !important;
+}
+
+.dark .bg-\[\#dfe3e9\] {
+  background-color: #252b2d !important;
+}
+
+.dark .text-\[\#60656a\] {
+  color: #2dd4bf !important;
+}
+
+/* Modals & Bottom Navigation */
+.dark nav {
+  background-color: #161919 !important;
+  border-top: 1px solid #2b3131 !important;
+}
+
+.dark header {
+  background-color: #161919 !important;
+  border-bottom: 1px solid #2b3131 !important;
+}
+
+/* Inputs, Selects & Textareas */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #1a1d1d !important;
+  color: #f1f5f5 !important;
+  border-color: #353d3d !important;
+}
+
+.dark select option {
+  background-color: #1a1d1d !important;
+  color: #f1f5f5 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6a7775 !important;
+}
+
+/* Attendance Status Badges in Dark Mode */
+.dark .bg-\[\#ffb598\]\/20 {
+  background-color: rgba(234, 88, 12, 0.2) !important;
+}
+.dark .text-\[\#7f4025\] {
+  color: #fb923c !important;
+}
+
+.dark .bg-\[\#c3c7cd\]\/20 {
+  background-color: rgba(156, 163, 175, 0.2) !important;
+}
+.dark .text-\[\#5a5f64\] {
+  color: #9ca3af !important;
+}
+
+.dark .bg-\[\#ffdad6\]\/40,
+.dark .bg-\[\#ffdad6\] {
+  background-color: rgba(220, 38, 38, 0.2) !important;
+}
+.dark .text-\[\#ba1a1a\] {
+  color: #f87171 !important;
+}
+
+.dark .border-\[\#ffdad6\] {
+  border-color: rgba(220, 38, 38, 0.3) !important;
+}
+
+.dark .bg-academic-pattern {
+  background-image: radial-gradient(#252a2a 1px, transparent 1px);
+}
+
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -133,6 +283,21 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
 }
 
 /* Leaflet overrides for embedded maps */

@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useJournals } from '@/hooks/useJournals';
 import { DUMMY_JOURNALS } from '@/lib/constants';
 import { AppHeaderBrand } from '@/components/layout/AppHeaderBrand';
+import { useTheme, Theme } from '@/hooks/useTheme';
 
 /**
  * Halaman Profil Guru — info, edit profil (nama & foto), statistik mengajar, pengaturan, logout.
@@ -15,6 +16,7 @@ import { AppHeaderBrand } from '@/components/layout/AppHeaderBrand';
 export default function ProfilPage() {
   const { user, loading, updateUserProfile, signOut } = useAuth();
   const { journals: firestoreJournals } = useJournals(user?.uid);
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const router = useRouter();
 
   // Edit Profile State
@@ -142,15 +144,42 @@ export default function ProfilPage() {
     return [...firestoreJournals, ...uniqueDummies];
   }, [firestoreJournals]);
 
-  /* ── Compute stats ── */
+  /* ── Month navigation for stats ── */
   const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
-  const monthlyJournals = allJournals.filter((j) => {
-    const d = new Date(j.createdAt);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  });
+  const goToPrevMonth = useCallback(() => {
+    setSelectedMonth((prev) => {
+      if (prev === 0) {
+        setSelectedYear((y) => y - 1);
+        return 11;
+      }
+      return prev - 1;
+    });
+  }, []);
+
+  const goToNextMonth = useCallback(() => {
+    const isCurrentMonth = selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
+    if (isCurrentMonth) return;
+    setSelectedMonth((prev) => {
+      if (prev === 11) {
+        setSelectedYear((y) => y + 1);
+        return 0;
+      }
+      return prev + 1;
+    });
+  }, [selectedMonth, selectedYear, now]);
+
+  const isCurrentMonth = selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
+
+  /* ── Compute stats for selected month ── */
+  const monthlyJournals = useMemo(() => {
+    return allJournals.filter((j) => {
+      const d = new Date(j.createdAt);
+      return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+    });
+  }, [allJournals, selectedMonth, selectedYear]);
 
   const totalJurnalBulan = monthlyJournals.length;
   const totalJamMengajar = monthlyJournals.reduce(
@@ -164,7 +193,35 @@ export default function ProfilPage() {
   const totalHadir = monthlyJournals.reduce((sum, j) => sum + j.jumlahHadir, 0);
   const rataKehadiran = totalSiswa > 0 ? Math.round((totalHadir / totalSiswa) * 100) : 0;
 
-  const monthName = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  // Unique teaching days
+  const uniqueTeachingDays = useMemo(() => {
+    const dates = new Set(monthlyJournals.map((j) => new Date(j.createdAt).toDateString()));
+    return dates.size;
+  }, [monthlyJournals]);
+
+  // Unique subjects taught
+  const uniqueSubjects = useMemo(() => {
+    const subjects = new Set(monthlyJournals.map((j) => j.mapel));
+    return Array.from(subjects);
+  }, [monthlyJournals]);
+
+  // Estimate workdays in the selected month (Mon-Fri)
+  const workdaysInMonth = useMemo(() => {
+    let count = 0;
+    const year = selectedYear;
+    const month = selectedMonth;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month, day);
+      const dow = d.getDay();
+      if (dow >= 1 && dow <= 5) count++;
+      // For current month, only count up to today
+      if (isCurrentMonth && d > now) break;
+    }
+    return count;
+  }, [selectedMonth, selectedYear, isCurrentMonth, now]);
+
+  const monthName = new Date(selectedYear, selectedMonth).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
   /* ── Loading state ── */
   if (loading) {
@@ -373,18 +430,42 @@ export default function ProfilPage() {
           </form>
         )}
 
-        {/* ═══════════ Statistik Mengajar ═══════════ */}
+        {/* ═══════════ Statistik Mengajar (Rekap Bulanan) ═══════════ */}
         <section className="bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg flex flex-col overflow-hidden shadow-sm">
           <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb]" />
           <div className="p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-[#1a1c1c] font-[Inter] flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#005c55] text-[20px]">bar_chart</span>
-                Statistik Mengajar
+                Rekap Mengajar
               </h3>
-              <span className="text-xs text-[#6e7977] font-[Inter]">{monthName}</span>
             </div>
 
+            {/* Month Navigator */}
+            <div className="flex items-center justify-between bg-white border border-[#E7E5E4] rounded-lg px-3 py-2">
+              <button
+                onClick={goToPrevMonth}
+                className="p-1 rounded-full hover:bg-[#e8e8e7] transition-colors active:scale-95"
+                aria-label="Bulan sebelumnya"
+              >
+                <span className="material-symbols-outlined text-[#005c55] text-[18px]">chevron_left</span>
+              </button>
+              <span className="text-sm font-semibold text-[#1a1c1c] font-[Inter] capitalize">
+                {monthName}
+              </span>
+              <button
+                onClick={goToNextMonth}
+                disabled={isCurrentMonth}
+                className={`p-1 rounded-full transition-colors active:scale-95 ${
+                  isCurrentMonth ? 'text-[#bdc9c6] cursor-not-allowed' : 'hover:bg-[#e8e8e7] text-[#005c55]'
+                }`}
+                aria-label="Bulan berikutnya"
+              >
+                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              </button>
+            </div>
+
+            {/* Stats Cards */}
             <div className="grid grid-cols-3 gap-2">
               {/* Total Jurnal */}
               <div className="bg-white rounded-lg p-3 flex flex-col items-center gap-1 border border-[#E7E5E4]">
@@ -409,6 +490,56 @@ export default function ProfilPage() {
                   Kehadiran
                 </span>
               </div>
+            </div>
+
+            {/* Mini Summary Detail */}
+            <div className="bg-white border border-[#E7E5E4] rounded-lg p-3 flex flex-col gap-2">
+              {/* Teaching days */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[#3e4947] font-[Inter] flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[14px] text-[#005c55]">calendar_today</span>
+                  Hari mengajar
+                </span>
+                <span className="text-xs font-semibold text-[#1a1c1c] font-[Inter]">
+                  {uniqueTeachingDays} / {workdaysInMonth} hari kerja
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="h-1.5 bg-[#E7E5E4] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#005c55] to-[#0f766e] rounded-full transition-all duration-500"
+                  style={{ width: `${workdaysInMonth > 0 ? Math.min(100, (uniqueTeachingDays / workdaysInMonth) * 100) : 0}%` }}
+                />
+              </div>
+
+              {/* Unfilled days warning */}
+              {workdaysInMonth - uniqueTeachingDays > 0 && (
+                <span className="text-[11px] text-[#92400e] font-medium font-[Inter] bg-[#fef3c7] px-2 py-1 rounded flex items-center gap-1 self-start">
+                  <span className="material-symbols-outlined text-[12px]">warning</span>
+                  {workdaysInMonth - uniqueTeachingDays} hari belum ada jurnal
+                </span>
+              )}
+
+              {/* Subjects taught */}
+              {uniqueSubjects.length > 0 && (
+                <div className="flex flex-col gap-1 pt-1 border-t border-[#E7E5E4]">
+                  <span className="text-[11px] text-[#6e7977] font-[Inter] font-medium flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[12px] text-[#005c55]">school</span>
+                    Mata pelajaran yang diajar:
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {uniqueSubjects.map((subj) => (
+                      <span
+                        key={subj}
+                        className="text-[10px] font-medium text-[#005c55] bg-[#0f766e]/10 px-2 py-0.5 rounded-md font-[Inter]"
+                      >
+                        {subj}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -455,6 +586,43 @@ export default function ProfilPage() {
             </div>
             <span className="material-symbols-outlined text-[#bdc9c6] text-[20px]">chevron_right</span>
           </button>
+
+          {/* Tema Aplikasi (Dark Mode Switcher) */}
+          <div className="bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg p-4 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[#005c55] text-[22px]">
+                {resolvedTheme === 'dark' ? 'dark_mode' : 'light_mode'}
+              </span>
+              <div className="flex flex-col flex-1">
+                <span className="text-sm font-medium text-[#1a1c1c] font-[Inter]">Tema Tampilan</span>
+                <span className="text-[11px] text-[#6e7977] font-[Inter]">
+                  Pilih mode gelap, terang, atau otomatis mengikuti sistem HP
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              {[
+                { id: 'light' as Theme, label: 'Terang', icon: 'light_mode' },
+                { id: 'dark' as Theme, label: 'Gelap', icon: 'dark_mode' },
+                { id: 'system' as Theme, label: 'Sistem', icon: 'devices' },
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTheme(t.id)}
+                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg border text-xs font-semibold font-[Inter] transition-all active:scale-95 ${
+                    theme === t.id
+                      ? 'bg-[#005c55] text-white border-[#005c55] shadow-sm'
+                      : 'bg-white border-[#E7E5E4] text-[#3e4947] hover:bg-[#eeeeed]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">{t.icon}</span>
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </section>
 
         {/* Tentang & Bantuan */}

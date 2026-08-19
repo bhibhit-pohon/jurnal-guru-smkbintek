@@ -10,9 +10,11 @@ import { useMasterData, MasterDataType } from '@/hooks/useMasterData';
 import { isAdminEmail } from '@/lib/firebase';
 import { DUMMY_JOURNALS, SCHOOL_COORDS } from '@/lib/constants';
 import type { JournalEntry } from '@/lib/types';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function AdminDashboardPage() {
   const { user, loading, signOut } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const router = useRouter();
 
   // Fetch all journals for admin view (isAdmin = true)
@@ -55,7 +57,7 @@ export default function AdminDashboardPage() {
   const [isDraftInitialized, setIsDraftInitialized] = useState(false);
 
   // Admin Navigation tab & Mobile Sidebar Drawer
-  const [activeTab, setActiveTab] = useState<'overview' | 'jurnal' | 'guru' | 'master'>('jurnal');
+  const [activeTab, setActiveTab] = useState<'overview' | 'jurnal' | 'guru' | 'master' | 'rekap'>('jurnal');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -293,10 +295,10 @@ export default function AdminDashboardPage() {
     XLSX.writeFile(workbook, filename);
   };
 
-  /* ── Loading state ── */
-  if (loading || journalsLoading) {
+  /* ── Loading state — hanya block pada auth loading, bukan data loading ── */
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f9f9f8]">
+      <div className="min-h-screen flex items-center justify-center bg-[#f4f5f5]">
         <div className="flex flex-col items-center gap-3">
           <svg className="animate-spin h-8 w-8 text-[#005c55]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -311,7 +313,7 @@ export default function AdminDashboardPage() {
   if (!user) return null;
 
   return (
-    <div className="bg-[#f4f5f5] text-[#1a1c1c] min-h-screen flex font-[Inter] relative">
+    <div className="bg-[#f4f5f5] text-[#1a1c1c] h-screen overflow-hidden flex font-[Inter] relative">
       {/* ══════════════ Floating Toast Notification ══════════════ */}
       {toast && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-md w-full px-4 transition-all duration-300">
@@ -359,6 +361,7 @@ export default function AdminDashboardPage() {
                 { id: 'jurnal', label: 'Data Jurnal Guru', icon: 'table_chart' },
                 { id: 'overview', label: 'Ringkasan Statistik', icon: 'analytics' },
                 { id: 'guru', label: 'Monitoring Guru', icon: 'groups' },
+                { id: 'rekap', label: 'Rekap Bulanan', icon: 'calendar_month' },
                 { id: 'master', label: 'Kelola Data Master', icon: 'settings_suggest' },
               ].map((item) => (
                 <button
@@ -391,7 +394,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* ══════════════ Desktop & Split-Screen Sidebar ══════════════ */}
-      <aside className="w-16 xl:w-64 bg-[#005c55] text-white flex flex-col shrink-0 shadow-lg hidden md:flex transition-all duration-200">
+      <aside className="w-16 xl:w-64 bg-[#005c55] text-white flex flex-col shrink-0 shadow-lg hidden md:flex transition-all duration-200 h-screen sticky top-0 overflow-y-auto">
         {/* Brand */}
         <div className="p-4 xl:p-6 border-b border-[#0f766e]/40 flex items-center gap-3 justify-center xl:justify-start">
           <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
@@ -411,6 +414,7 @@ export default function AdminDashboardPage() {
             { id: 'jurnal', label: 'Data Jurnal Guru', icon: 'table_chart' },
             { id: 'overview', label: 'Ringkasan Statistik', icon: 'analytics' },
             { id: 'guru', label: 'Monitoring Guru', icon: 'groups' },
+            { id: 'rekap', label: 'Rekap Bulanan', icon: 'calendar_month' },
             { id: 'master', label: 'Kelola Data Master', icon: 'settings_suggest' },
           ].map((item) => (
             <button
@@ -473,8 +477,10 @@ export default function AdminDashboardPage() {
                 : activeTab === 'overview'
                 ? '📊 Dashboard Analisis & Statistik'
                 : activeTab === 'guru'
-                ? '👥 Monitoring Kehadiran Guru'
-                : '⚙️ Kelola Data Master Sekolah'}
+                ? '👥 Monitoring Guru'
+                : activeTab === 'rekap'
+                ? '📅 Rekap Bulanan'
+                : '⚙️ Kelola Data Master'}
             </h2>
 
             {!isAdmin && (
@@ -485,6 +491,19 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              className="border border-[#E7E5E4] text-[#3e4947] hover:text-[#005c55] p-1.5 sm:p-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-[#F5F5F4] transition-colors flex items-center gap-1 shrink-0"
+              title={resolvedTheme === 'dark' ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
+              aria-label="Toggle Dark Mode"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {resolvedTheme === 'dark' ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
+
             <button
               onClick={handleExportExcel}
               className="bg-[#005c55] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-[#0f766e] transition-colors flex items-center gap-1.5 shadow-xs active:scale-95 shrink-0"
@@ -508,61 +527,78 @@ export default function AdminDashboardPage() {
           </div>
         </header>
 
-        <main className="p-6 flex flex-col gap-6 max-w-7xl w-full mx-auto">
+        <main className="p-4 md:p-6 flex flex-col gap-6 max-w-7xl w-full mx-auto">
           {/* ═══════════ Stats Overview Grid ═══════════ */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Stat 1 */}
-            <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 flex flex-col overflow-hidden shadow-xs relative">
-              <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#6e7977] uppercase tracking-wider">Total Jurnal</span>
-                <span className="material-symbols-outlined text-[#005c55] bg-[#0f766e]/10 p-2 rounded-lg text-[20px]">
-                  article
-                </span>
-              </div>
-              <span className="text-3xl font-bold text-[#1a1c1c] mt-2">{stats.totalJournals}</span>
-              <span className="text-xs text-[#005c55] mt-1 font-medium">Tersimpan di sistem</span>
+          {journalsLoading ? (
+            /* Skeleton loading cards */
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white border border-[#E7E5E4] rounded-xl p-5 flex flex-col gap-3 overflow-hidden shadow-xs relative animate-pulse">
+                  <div className="h-[3px] bg-gradient-to-r from-[#E7E5E4] to-[#F5F5F4] absolute top-0 left-0 right-0" />
+                  <div className="flex items-center justify-between">
+                    <div className="h-3 w-20 bg-[#E7E5E4] rounded" />
+                    <div className="w-9 h-9 rounded-lg bg-[#E7E5E4]" />
+                  </div>
+                  <div className="h-8 w-12 bg-[#E7E5E4] rounded mt-1" />
+                  <div className="h-3 w-24 bg-[#E7E5E4] rounded" />
+                </div>
+              ))}
             </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Stat 1 */}
+              <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 flex flex-col overflow-hidden shadow-xs relative">
+                <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#6e7977] uppercase tracking-wider">Total Jurnal</span>
+                  <span className="material-symbols-outlined text-[#005c55] bg-[#0f766e]/10 p-2 rounded-lg text-[20px]">
+                    article
+                  </span>
+                </div>
+                <span className="text-3xl font-bold text-[#1a1c1c] mt-2">{stats.totalJournals}</span>
+                <span className="text-xs text-[#005c55] mt-1 font-medium">Tersimpan di sistem</span>
+              </div>
 
-            {/* Stat 2 */}
-            <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 flex flex-col overflow-hidden shadow-xs relative">
-              <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#6e7977] uppercase tracking-wider">Jurnal Hari Ini</span>
-                <span className="material-symbols-outlined text-[#005c55] bg-[#0f766e]/10 p-2 rounded-lg text-[20px]">
-                  today
-                </span>
+              {/* Stat 2 */}
+              <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 flex flex-col overflow-hidden shadow-xs relative">
+                <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#6e7977] uppercase tracking-wider">Jurnal Hari Ini</span>
+                  <span className="material-symbols-outlined text-[#005c55] bg-[#0f766e]/10 p-2 rounded-lg text-[20px]">
+                    today
+                  </span>
+                </div>
+                <span className="text-3xl font-bold text-[#005c55] mt-2">{stats.todayCount}</span>
+                <span className="text-xs text-[#6e7977] mt-1">Mengajar hari ini</span>
               </div>
-              <span className="text-3xl font-bold text-[#005c55] mt-2">{stats.todayCount}</span>
-              <span className="text-xs text-[#6e7977] mt-1">Mengajar hari ini</span>
-            </div>
 
-            {/* Stat 3 */}
-            <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 flex flex-col overflow-hidden shadow-xs relative">
-              <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#6e7977] uppercase tracking-wider">Guru Terdaftar</span>
-                <span className="material-symbols-outlined text-[#005c55] bg-[#0f766e]/10 p-2 rounded-lg text-[20px]">
-                  group
-                </span>
+              {/* Stat 3 */}
+              <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 flex flex-col overflow-hidden shadow-xs relative">
+                <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#6e7977] uppercase tracking-wider">Guru Terdaftar</span>
+                  <span className="material-symbols-outlined text-[#005c55] bg-[#0f766e]/10 p-2 rounded-lg text-[20px]">
+                    group
+                  </span>
+                </div>
+                <span className="text-3xl font-bold text-[#1a1c1c] mt-2">{stats.totalTeachers}</span>
+                <span className="text-xs text-[#6e7977] mt-1">SMK Bina Teknologi</span>
               </div>
-              <span className="text-3xl font-bold text-[#1a1c1c] mt-2">{stats.totalTeachers}</span>
-              <span className="text-xs text-[#6e7977] mt-1">SMK Bina Teknologi</span>
-            </div>
 
-            {/* Stat 4 */}
-            <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 flex flex-col overflow-hidden shadow-xs relative">
-              <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#6e7977] uppercase tracking-wider">Rerata Kehadiran</span>
-                <span className="material-symbols-outlined text-[#005c55] bg-[#0f766e]/10 p-2 rounded-lg text-[20px]">
-                  check_circle
-                </span>
+              {/* Stat 4 */}
+              <div className="bg-white border border-[#E7E5E4] rounded-xl p-5 flex flex-col overflow-hidden shadow-xs relative">
+                <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#6e7977] uppercase tracking-wider">Rerata Kehadiran</span>
+                  <span className="material-symbols-outlined text-[#005c55] bg-[#0f766e]/10 p-2 rounded-lg text-[20px]">
+                    check_circle
+                  </span>
+                </div>
+                <span className="text-3xl font-bold text-[#005c55] mt-2">{stats.avgAttendance}%</span>
+                <span className="text-xs text-[#6e7977] mt-1">Kehadiran siswa dikelas</span>
               </div>
-              <span className="text-3xl font-bold text-[#005c55] mt-2">{stats.avgAttendance}%</span>
-              <span className="text-xs text-[#6e7977] mt-1">Kehadiran siswa dikelas</span>
             </div>
-          </div>
+          )}
 
           {/* ═══════════ Tab Content 0: Overview Analytics & Charts ═══════════ */}
           {activeTab === 'overview' && (
@@ -945,6 +981,183 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           )}
+          {/* ═══════════ Tab Content: Rekap Bulanan ═══════════ */}
+          {activeTab === 'rekap' && (() => {
+            // Month navigation state via closure (simple approach without additional useState)
+            const nowDate = new Date();
+            // Use a key-based approach with the existing state — we'll use a simple local computation
+            // For proper month nav, we add useState at top level. For now let's compute current month data.
+            
+            // Get all unique months from journals
+            const availableMonths = Array.from(
+              new Set(allJournals.map((j) => {
+                const d = new Date(j.createdAt);
+                return `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+              }))
+            ).sort().reverse();
+
+            const currentMonthKey = `${nowDate.getFullYear()}-${String(nowDate.getMonth()).padStart(2, '0')}`;
+            if (!availableMonths.includes(currentMonthKey)) {
+              availableMonths.unshift(currentMonthKey);
+            }
+
+            // Filter journals for current month (default view)
+            const rekapMonth = nowDate.getMonth();
+            const rekapYear = nowDate.getFullYear();
+            const rekapMonthName = nowDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+            const monthJournals = allJournals.filter((j) => {
+              const d = new Date(j.createdAt);
+              return d.getMonth() === rekapMonth && d.getFullYear() === rekapYear;
+            });
+
+            // Compute workdays in month
+            let rekapWorkdays = 0;
+            const daysInRekapMonth = new Date(rekapYear, rekapMonth + 1, 0).getDate();
+            for (let day = 1; day <= daysInRekapMonth; day++) {
+              const d = new Date(rekapYear, rekapMonth, day);
+              const dow = d.getDay();
+              if (dow >= 1 && dow <= 5) rekapWorkdays++;
+              if (d > nowDate) break;
+            }
+
+            // Group by teacher
+            const teacherMap = new Map<string, { displayName: string; email: string; journals: typeof monthJournals }>();
+            monthJournals.forEach((j) => {
+              const key = (j as any).email || (j as any).displayName || 'unknown';
+              if (!teacherMap.has(key)) {
+                teacherMap.set(key, {
+                  displayName: (j as any).displayName || 'Guru',
+                  email: (j as any).email || '-',
+                  journals: [],
+                });
+              }
+              teacherMap.get(key)!.journals.push(j);
+            });
+
+            const teacherStats = Array.from(teacherMap.values()).map((t) => {
+              const uniqueDays = new Set(t.journals.map((j) => new Date(j.createdAt).toDateString())).size;
+              const totalSiswa = t.journals.reduce((s, j) => s + j.jumlahHadir + j.jumlahIzin + j.jumlahSakit + j.jumlahAlpha, 0);
+              const totalHadir = t.journals.reduce((s, j) => s + j.jumlahHadir, 0);
+              const kehadiran = totalSiswa > 0 ? Math.round((totalHadir / totalSiswa) * 100) : 0;
+              return {
+                ...t,
+                totalJurnal: t.journals.length,
+                uniqueDays,
+                kehadiran,
+                isComplete: uniqueDays >= rekapWorkdays,
+              };
+            }).sort((a, b) => b.totalJurnal - a.totalJurnal);
+
+            const totalGuruAktif = teacherStats.length;
+            const totalJurnalBulan = monthJournals.length;
+            const avgKehadiran = teacherStats.length > 0
+              ? Math.round(teacherStats.reduce((s, t) => s + t.kehadiran, 0) / teacherStats.length)
+              : 0;
+
+            return (
+              <div className="flex flex-col gap-6">
+                {/* Header Card */}
+                <div className="bg-white border border-[#E7E5E4] rounded-xl p-6 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+                  <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb] absolute top-0 left-0 right-0" />
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-bold text-[#005c55] flex items-center gap-2">
+                      <span className="material-symbols-outlined">calendar_month</span>
+                      Rekap Bulanan
+                    </h3>
+                    <span className="text-sm font-semibold text-[#1a1c1c] bg-[#F5F5F4] border border-[#E7E5E4] px-3 py-1.5 rounded-lg capitalize">
+                      {rekapMonthName}
+                    </span>
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-[#F5F5F4] rounded-lg p-4 flex flex-col items-center gap-1 border border-[#E7E5E4]">
+                      <span className="text-3xl font-bold text-[#005c55]">{totalJurnalBulan}</span>
+                      <span className="text-[10px] font-medium text-[#6e7977] uppercase tracking-wider">Total Jurnal</span>
+                    </div>
+                    <div className="bg-[#F5F5F4] rounded-lg p-4 flex flex-col items-center gap-1 border border-[#E7E5E4]">
+                      <span className="text-3xl font-bold text-[#005c55]">{totalGuruAktif}</span>
+                      <span className="text-[10px] font-medium text-[#6e7977] uppercase tracking-wider">Guru Aktif</span>
+                    </div>
+                    <div className="bg-[#F5F5F4] rounded-lg p-4 flex flex-col items-center gap-1 border border-[#E7E5E4]">
+                      <span className="text-3xl font-bold text-[#005c55]">{avgKehadiran}%</span>
+                      <span className="text-[10px] font-medium text-[#6e7977] uppercase tracking-wider">Avg Kehadiran</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Teacher Table */}
+                <div className="bg-white border border-[#E7E5E4] rounded-xl shadow-xs overflow-hidden">
+                  <div className="p-4 border-b border-[#E7E5E4] flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-[#1a1c1c] flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#005c55] text-[18px]">groups</span>
+                      Rekap Per Guru — {rekapMonthName}
+                    </h4>
+                    <span className="text-[11px] text-[#6e7977]">
+                      {rekapWorkdays} hari kerja
+                    </span>
+                  </div>
+
+                  {teacherStats.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-[#F5F5F4] text-[#3e4947] text-xs font-semibold uppercase tracking-wider">
+                            <th className="text-left px-4 py-3">Guru</th>
+                            <th className="text-center px-3 py-3">Jurnal</th>
+                            <th className="text-center px-3 py-3">Hari Mengajar</th>
+                            <th className="text-center px-3 py-3">Kehadiran</th>
+                            <th className="text-center px-3 py-3">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E7E5E4]">
+                          {teacherStats.map((teacher, idx) => (
+                            <tr key={idx} className="hover:bg-[#F5F5F4]/50 transition-colors">
+                              <td className="px-4 py-3">
+                                <div className="flex flex-col">
+                                  <span className="font-semibold text-[#1a1c1c] text-sm">{teacher.displayName}</span>
+                                  <span className="text-[11px] text-[#6e7977]">{teacher.email}</span>
+                                </div>
+                              </td>
+                              <td className="text-center px-3 py-3">
+                                <span className="font-bold text-[#005c55]">{teacher.totalJurnal}</span>
+                              </td>
+                              <td className="text-center px-3 py-3">
+                                <span className="font-semibold text-[#1a1c1c]">{teacher.uniqueDays}</span>
+                                <span className="text-[#6e7977]">/{rekapWorkdays}</span>
+                              </td>
+                              <td className="text-center px-3 py-3">
+                                <span className={`font-semibold ${teacher.kehadiran >= 90 ? 'text-[#005c55]' : teacher.kehadiran >= 75 ? 'text-[#92400e]' : 'text-[#ba1a1a]'}`}>
+                                  {teacher.kehadiran}%
+                                </span>
+                              </td>
+                              <td className="text-center px-3 py-3">
+                                {teacher.isComplete ? (
+                                  <span className="text-[10px] font-semibold text-[#005c55] bg-[#0f766e]/10 px-2 py-1 rounded-full">
+                                    ✅ Lengkap
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-semibold text-[#92400e] bg-[#fef3c7] px-2 py-1 rounded-full">
+                                    ⚠️ {rekapWorkdays - teacher.uniqueDays} hari kosong
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center">
+                      <span className="material-symbols-outlined text-[#bdc9c6] text-[48px]">event_busy</span>
+                      <p className="text-sm text-[#6e7977] mt-2">Belum ada data jurnal untuk bulan ini.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ═══════════ Tab Content 3: Kelola Data Master ═══════════ */}
           {activeTab === 'master' && (

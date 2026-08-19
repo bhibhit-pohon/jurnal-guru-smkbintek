@@ -22,6 +22,8 @@ export const googleProvider = new GoogleAuthProvider();
 export const ADMIN_EMAILS = [
   'admin@smkbintek.sch.id',
   'admin.jurnal@gmail.com',
+  'bhibhit@gmail.com',
+  'teguh17purnomo@gmail.com',
   // Tambahkan email admin lainnya di sini
 ];
 

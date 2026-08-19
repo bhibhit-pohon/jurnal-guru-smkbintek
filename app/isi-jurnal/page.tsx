@@ -9,6 +9,7 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 import { useJournals } from '@/hooks/useJournals';
 import { useMasterData } from '@/hooks/useMasterData';
 import { AppHeaderBrand } from '@/components/layout/AppHeaderBrand';
+import JournalReminder from '@/components/layout/JournalReminder';
 import {
   MAPEL_OPTIONS,
   KELAS_OPTIONS,
@@ -64,7 +65,7 @@ export default function IsiJurnalPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const { coords, error: geoError, loading: geoLoading } = useGeolocation();
-  const { saveJournal } = useJournals();
+  const { journals: myJournals, saveJournal } = useJournals(user?.uid);
   const { mapelList, kelasList, ruangList } = useMasterData();
 
   const [form, setForm] = useState<JurnalFormState>(INITIAL_FORM);
@@ -165,14 +166,14 @@ export default function IsiJurnalPage() {
 
 /**
  * Kompresi foto secara otomatis menggunakan HTML5 Canvas.
- * Apapun ukuran foto original (misal 5MB, 8MB, 12MB dari kamera HP),
- * foto akan di-resize & dikompresi menjadi JPEG berkualitas tinggi berukuran < 2MB (rata-rata ~300KB-800KB).
+ * Target: < 400KB base64 agar aman disimpan di Firestore (batas 1MB/dokumen).
+ * maxWidth=640 & quality=0.55 cukup untuk bukti foto kelas (tidak perlu resolusi tinggi).
  */
 function compressImageFile(
   file: File,
-  maxWidth = 1280,
-  maxHeight = 1280,
-  quality = 0.75
+  maxWidth = 640,
+  maxHeight = 640,
+  quality = 0.55
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -207,7 +208,14 @@ function compressImageFile(
         }
 
         ctx.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+
+        // If still > 500KB, compress again with lower quality
+        const approxSizeKB = (compressedDataUrl.length * 3) / 4 / 1024;
+        if (approxSizeKB > 500) {
+          compressedDataUrl = canvas.toDataURL('image/jpeg', 0.35);
+        }
+
         resolve(compressedDataUrl);
       };
       img.onerror = (err) => reject(err);
@@ -216,17 +224,23 @@ function compressImageFile(
   });
 }
 
-  /* ── Camera capture (camera-only, auto-compressed < 2MB) ── */
+  /* ── Camera capture (camera-only, auto-compressed < 400KB) ── */
   const handleCameraCapture = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
       try {
-        showToast('Memproses & mengompres foto kelas...', 'info');
+        showToast('Memproses foto...', 'info');
         const compressedBase64 = await compressImageFile(file);
+        // Validate final size
+        const approxSizeKB = (compressedBase64.length * 3) / 4 / 1024;
+        if (approxSizeKB > 800) {
+          showToast('Foto masih terlalu besar. Coba ambil foto dengan resolusi lebih rendah.', 'error');
+          return;
+        }
         updateField('fotoKelas', compressedBase64);
-        showToast('Foto kelas berhasil dikompres & siap disimpan!', 'success');
+        showToast(`Foto siap disimpan (${Math.round(approxSizeKB)}KB)`, 'success');
       } catch (err) {
         console.error('Gagal mengompres foto:', err);
         showToast('Gagal memproses foto kelas. Silakan coba lagi.', 'error');
@@ -273,6 +287,15 @@ function compressImageFile(
       return;
     }
 
+    // Validate foto size before submit (prevent Firestore 1MB doc limit)
+    if (form.fotoKelas) {
+      const fotoSizeKB = (form.fotoKelas.length * 3) / 4 / 1024;
+      if (fotoSizeKB > 800) {
+        showToast('Foto kelas terlalu besar (>800KB). Hapus & ambil ulang foto.', 'error');
+        return;
+      }
+    }
+
     // Save signature if still on canvas
     if (sigRef.current && !sigRef.current.isEmpty() && !form.tandaTangan) {
       saveSignature();
@@ -304,16 +327,18 @@ function compressImageFile(
 
       const result = await saveJournal(payload);
       if (result.success) {
-        showToast('Jurnal berhasil disimpan ke Firestore!', 'success');
+        // Reset form
         setForm(INITIAL_FORM);
         if (sigRef.current) sigRef.current.clear();
+        // Redirect ke riwayat agar guru langsung melihat data tersimpan
+        router.push('/riwayat-jurnal');
       } else {
         throw new Error(result.error);
       }
     } catch (error: unknown) {
       const err = error as Error;
       console.error('❌ Gagal menyimpan:', err);
-      showToast(`Gagal menyimpan jurnal: ${err.message || 'Terjadi kesalahan'}`, 'error');
+      showToast(`Gagal menyimpan: ${err.message || 'Periksa koneksi internet'}`, 'error');
     } finally {
       setIsSaving(false);
     }
@@ -402,6 +427,9 @@ function compressImageFile(
             {today}
           </p>
         </div>
+
+        {/* ── In-App Reminder ── */}
+        <JournalReminder journals={myJournals} showCTA={false} />
 
         {/* ═══════════ Card 1: Info Mengajar ═══════════ */}
         <section className="bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg flex flex-col overflow-hidden">
@@ -863,7 +891,7 @@ function compressImageFile(
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              Menyimpan...
+              Menyimpan ke server...
             </span>
           ) : !isWithinRadius ? (
             <span className="flex items-center justify-center gap-2">
@@ -901,9 +929,10 @@ function compressImageFile(
           </span>
         </button>
 
-        {/* Riwayat Jurnal */}
+        {/* Riwayat Jurnal — prefetch for instant navigation */}
         <Link
           href="/riwayat-jurnal"
+          prefetch={true}
           aria-label="Riwayat Jurnal"
           className="flex flex-col items-center justify-center text-[#3e4947] px-6 py-1.5 hover:bg-[#e8e8e7] transition-colors active:scale-95 duration-150 rounded-xl"
         >

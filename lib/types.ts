@@ -18,6 +18,9 @@ export interface JournalEntry {
   jarakDariSekolah: number; // jarak dalam meter
   createdAt: string;
   updatedAt?: string;
+  uid?: string;
+  displayName?: string;
+  email?: string;
 }
 
 export interface GPSCoords {

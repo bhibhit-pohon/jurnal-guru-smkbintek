@@ -4,15 +4,23 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
   addDoc,
+  doc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
   onSnapshot,
   serverTimestamp,
   Timestamp,
+  limit,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { JournalEntry, GPSCoords } from '@/lib/types';
+
+/** Batas waktu edit/hapus jurnal (dalam jam) */
+export const EDIT_WINDOW_HOURS = 24;
 
 /** Payload untuk membuat jurnal baru */
 export interface CreateJournalPayload {
@@ -39,8 +47,8 @@ export interface CreateJournalPayload {
 
 /**
  * Hook untuk operasi CRUD jurnal di Firestore.
- * - Untuk guru: query berdasarkan uid
- * - Untuk admin: query semua jurnal
+ * - Untuk guru: query berdasarkan uid (max 200 jurnal terbaru)
+ * - Untuk admin: query semua jurnal (max 100 terbaru agar cepat)
  */
 export function useJournals(uid?: string, isAdmin = false) {
   const [journals, setJournals] = useState<JournalEntry[]>([]);
@@ -56,14 +64,19 @@ export function useJournals(uid?: string, isAdmin = false) {
 
     let q;
     if (isAdmin) {
-      // Admin: lihat semua jurnal, urut terbaru
-      q = query(collection(db, 'journals'), orderBy('createdAt', 'desc'));
+      // Admin: lihat 100 jurnal terbaru — cukup untuk dashboard, mencegah scan koleksi penuh
+      q = query(
+        collection(db, 'journals'),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
     } else {
-      // Guru: hanya jurnal milik sendiri
+      // Guru: hanya jurnal milik sendiri, max 200
       q = query(
         collection(db, 'journals'),
         where('uid', '==', uid),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(200)
       );
     }
 
@@ -94,7 +107,8 @@ export function useJournals(uid?: string, isAdmin = false) {
               d.createdAt instanceof Timestamp
                 ? d.createdAt.toDate().toISOString()
                 : d.createdAt ?? new Date().toISOString(),
-            // Extra fields for admin view
+            // Extra fields
+            uid: d.uid ?? undefined,
             ...(d.displayName && { displayName: d.displayName }),
             ...(d.email && { email: d.email }),
           } as JournalEntry;
@@ -129,5 +143,97 @@ export function useJournals(uid?: string, isAdmin = false) {
     }
   }, []);
 
-  return { journals, loading, error, saveJournal };
+  /** Payload untuk update jurnal (field-field yang boleh diedit) */
+  interface UpdateJournalPayload {
+    mapel?: string;
+    kelas?: string;
+    ruang?: string;
+    jamMulai?: number;
+    jamSelesai?: number;
+    jumlahHadir?: number;
+    jumlahIzin?: number;
+    jumlahSakit?: number;
+    jumlahAlpha?: number;
+    namaSiswaAbsen?: string;
+    catatan?: string;
+  }
+
+  // Update jurnal (hanya dalam batas waktu EDIT_WINDOW_HOURS)
+  const updateJournal = useCallback(
+    async (journalId: string, payload: UpdateJournalPayload) => {
+      try {
+        const docRef = doc(db, 'journals', journalId);
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) {
+          return { success: false as const, error: 'Jurnal tidak ditemukan.' };
+        }
+
+        const data = snap.data();
+        const createdAt =
+          data.createdAt instanceof Timestamp
+            ? data.createdAt.toDate()
+            : new Date(data.createdAt);
+        const hoursElapsed =
+          (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+
+        if (hoursElapsed > EDIT_WINDOW_HOURS) {
+          return {
+            success: false as const,
+            error: `Batas waktu edit (${EDIT_WINDOW_HOURS} jam) sudah terlewati.`,
+          };
+        }
+
+        await updateDoc(docRef, {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        });
+        console.log('✅ Jurnal diupdate:', journalId);
+        return { success: true as const };
+      } catch (err) {
+        const e = err as Error;
+        console.error('❌ Gagal update:', e);
+        return { success: false as const, error: e.message };
+      }
+    },
+    []
+  );
+
+  // Hapus jurnal (hanya dalam batas waktu EDIT_WINDOW_HOURS)
+  const deleteJournal = useCallback(
+    async (journalId: string) => {
+      try {
+        const docRef = doc(db, 'journals', journalId);
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) {
+          return { success: false as const, error: 'Jurnal tidak ditemukan.' };
+        }
+
+        const data = snap.data();
+        const createdAt =
+          data.createdAt instanceof Timestamp
+            ? data.createdAt.toDate()
+            : new Date(data.createdAt);
+        const hoursElapsed =
+          (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+
+        if (hoursElapsed > EDIT_WINDOW_HOURS) {
+          return {
+            success: false as const,
+            error: `Batas waktu hapus (${EDIT_WINDOW_HOURS} jam) sudah terlewati.`,
+          };
+        }
+
+        await deleteDoc(docRef);
+        console.log('✅ Jurnal dihapus:', journalId);
+        return { success: true as const };
+      } catch (err) {
+        const e = err as Error;
+        console.error('❌ Gagal hapus:', e);
+        return { success: false as const, error: e.message };
+      }
+    },
+    []
+  );
+
+  return { journals, loading, error, saveJournal, updateJournal, deleteJournal };
 }
