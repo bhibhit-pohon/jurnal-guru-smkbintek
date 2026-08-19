@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useJournals } from '@/hooks/useJournals';
 import { useMasterData } from '@/hooks/useMasterData';
+import { useTheme } from '@/hooks/useTheme';
 import { AppHeaderBrand } from '@/components/layout/AppHeaderBrand';
 import JournalReminder from '@/components/layout/JournalReminder';
 import {
@@ -64,12 +65,14 @@ const INITIAL_FORM: JurnalFormState = {
 export default function IsiJurnalPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
   const { coords, error: geoError, loading: geoLoading } = useGeolocation();
   const { journals: myJournals, saveJournal } = useJournals(user?.uid);
   const { mapelList, kelasList, ruangList } = useMasterData();
 
   const [form, setForm] = useState<JurnalFormState>(INITIAL_FORM);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStep, setSaveStep] = useState<'idle' | 'uploading' | 'confirming' | 'done'>('idle');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   /* ── Custom Manual Input States ── */
@@ -165,16 +168,15 @@ export default function IsiJurnalPage() {
   }, [editingField, editValue, updateField]);
 
 /**
- * Kompresi foto secara otomatis menggunakan HTML5 Canvas.
- * Target: < 400KB base64 agar aman disimpan di Firestore (batas 1MB/dokumen).
- * maxWidth=640 & quality=0.55 cukup untuk bukti foto kelas (tidak perlu resolusi tinggi).
+ * Kompresi foto bukti kelas menggunakan HTML5 Canvas.
+ * Target: < 150KB — cukup jelas untuk melihat guru + siswa di kelas.
+ * Firestore max doc size = 1MB. Foto disimpan sebagai base64 di dokumen.
+ * maxWidth=480 / quality=0.45 → rata-rata hasilnya 60-130KB.
  */
-function compressImageFile(
-  file: File,
-  maxWidth = 640,
-  maxHeight = 640,
-  quality = 0.55
-): Promise<string> {
+function compressImageFile(file: File): Promise<string> {
+  const MAX_DIM = 480;   // px — cukup jelas untuk bukti foto kelas
+  const QUALITY = 0.45;  // JPEG quality — target ~80-130KB
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -182,68 +184,52 @@ function compressImageFile(
       const img = new Image();
       img.src = event.target?.result as string;
       img.onload = () => {
-        let width = img.width;
-        let height = img.height;
+        let { width, height } = img;
 
+        // Scale down proportionally
         if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
+          if (width > MAX_DIM) { height = Math.round((height * MAX_DIM) / width); width = MAX_DIM; }
         } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
+          if (height > MAX_DIM) { width = Math.round((width * MAX_DIM) / height); height = MAX_DIM; }
         }
 
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-
         const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(event.target?.result as string);
-          return;
-        }
+        if (!ctx) { resolve(event.target?.result as string); return; }
 
         ctx.drawImage(img, 0, 0, width, height);
-        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        let result = canvas.toDataURL('image/jpeg', QUALITY);
 
-        // If still > 500KB, compress again with lower quality
-        const approxSizeKB = (compressedDataUrl.length * 3) / 4 / 1024;
-        if (approxSizeKB > 500) {
-          compressedDataUrl = canvas.toDataURL('image/jpeg', 0.35);
+        // Safety net: jika masih > 200KB, kompres lebih dalam
+        const sizeKB = (result.length * 3) / 4 / 1024;
+        if (sizeKB > 200) {
+          result = canvas.toDataURL('image/jpeg', 0.3);
         }
 
-        resolve(compressedDataUrl);
+        resolve(result);
       };
-      img.onerror = (err) => reject(err);
+      img.onerror = reject;
     };
-    reader.onerror = (err) => reject(err);
+    reader.onerror = reject;
   });
 }
 
-  /* ── Camera capture (camera-only, auto-compressed < 400KB) ── */
+  /* ── Camera capture ── */
   const handleCameraCapture = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-
       try {
         showToast('Memproses foto...', 'info');
-        const compressedBase64 = await compressImageFile(file);
-        // Validate final size
-        const approxSizeKB = (compressedBase64.length * 3) / 4 / 1024;
-        if (approxSizeKB > 800) {
-          showToast('Foto masih terlalu besar. Coba ambil foto dengan resolusi lebih rendah.', 'error');
-          return;
-        }
-        updateField('fotoKelas', compressedBase64);
-        showToast(`Foto siap disimpan (${Math.round(approxSizeKB)}KB)`, 'success');
+        const compressed = await compressImageFile(file);
+        const sizeKB = Math.round((compressed.length * 3) / 4 / 1024);
+        updateField('fotoKelas', compressed);
+        showToast(`Foto siap (${sizeKB}KB)`, 'success');
       } catch (err) {
         console.error('Gagal mengompres foto:', err);
-        showToast('Gagal memproses foto kelas. Silakan coba lagi.', 'error');
+        showToast('Gagal memproses foto. Coba lagi.', 'error');
       }
     },
     [updateField, showToast]
@@ -287,21 +273,21 @@ function compressImageFile(
       return;
     }
 
-    // Validate foto size before submit (prevent Firestore 1MB doc limit)
+    // Final size check
     if (form.fotoKelas) {
-      const fotoSizeKB = (form.fotoKelas.length * 3) / 4 / 1024;
-      if (fotoSizeKB > 800) {
-        showToast('Foto kelas terlalu besar (>800KB). Hapus & ambil ulang foto.', 'error');
+      const sizeKB = (form.fotoKelas.length * 3) / 4 / 1024;
+      if (sizeKB > 400) {
+        showToast('Foto terlalu besar. Hapus & ambil ulang foto.', 'error');
         return;
       }
     }
 
-    // Save signature if still on canvas
     if (sigRef.current && !sigRef.current.isEmpty() && !form.tandaTangan) {
       saveSignature();
     }
 
     setIsSaving(true);
+    setSaveStep('uploading');
     try {
       const payload = {
         mapel: form.mapel,
@@ -327,10 +313,10 @@ function compressImageFile(
 
       const result = await saveJournal(payload);
       if (result.success) {
-        // Reset form
+        setSaveStep('done');
         setForm(INITIAL_FORM);
         if (sigRef.current) sigRef.current.clear();
-        // Redirect ke riwayat agar guru langsung melihat data tersimpan
+        // Redirect langsung — Firestore addDoc sudah confirmed
         router.push('/riwayat-jurnal');
       } else {
         throw new Error(result.error);
@@ -339,6 +325,7 @@ function compressImageFile(
       const err = error as Error;
       console.error('❌ Gagal menyimpan:', err);
       showToast(`Gagal menyimpan: ${err.message || 'Periksa koneksi internet'}`, 'error');
+      setSaveStep('idle');
     } finally {
       setIsSaving(false);
     }
@@ -398,22 +385,35 @@ function compressImageFile(
       )}
 
       {/* ══════════════ TopAppBar ══════════════ */}
-      <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#f9f9f8] shadow-sm">
+      <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-[#f9f9f8] shadow-sm">
         <AppHeaderBrand />
-        <Link href="/profil" className="flex items-center">
-          {user.photoURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.photoURL}
-              alt="Profil"
-              className="w-9 h-9 rounded-full border-2 border-[#005c55]/20 hover:border-[#005c55]/50 transition-colors"
-            />
-          ) : (
-            <button aria-label="Profile" className="text-[#005c55] hover:opacity-80 transition-opacity active:scale-95 duration-150">
-              <span className="material-symbols-outlined">account_circle</span>
-            </button>
-          )}
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Dark Mode Quick Toggle */}
+          <button
+            type="button"
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            className="text-[#005c55] p-2 rounded-lg hover:bg-[#0f766e]/10 transition-colors active:scale-95 duration-150"
+            aria-label={resolvedTheme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}
+            title={resolvedTheme === 'dark' ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
+          >
+            <span className="material-symbols-outlined text-[22px]">
+              {resolvedTheme === 'dark' ? 'light_mode' : 'dark_mode'}
+            </span>
+          </button>
+          {/* Profile Link */}
+          <Link href="/profil" className="flex items-center">
+            {user.photoURL ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.photoURL}
+                alt="Profil"
+                className="w-9 h-9 rounded-full border-2 border-[#005c55]/20 hover:border-[#005c55]/50 transition-colors"
+              />
+            ) : (
+              <span className="material-symbols-outlined text-[#005c55] hover:opacity-80 transition-opacity p-1 text-[28px]">account_circle</span>
+            )}
+          </Link>
+        </div>
       </header>
 
       {/* ══════════════ Main Content ══════════════ */}
@@ -891,7 +891,7 @@ function compressImageFile(
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              Menyimpan ke server...
+              {saveStep === 'uploading' ? 'Mengirim ke server...' : 'Menyimpan...'}
             </span>
           ) : !isWithinRadius ? (
             <span className="flex items-center justify-center gap-2">

@@ -12,6 +12,7 @@ import { AppHeaderBrand } from '@/components/layout/AppHeaderBrand';
 import JournalReminder from '@/components/layout/JournalReminder';
 import EditJournalModal from '@/components/riwayat/EditJournalModal';
 import DeleteConfirmModal from '@/components/riwayat/DeleteConfirmModal';
+import { useTheme } from '@/hooks/useTheme';
 
 /* ── Helper: get Monday of a given week ── */
 function getMonday(d: Date): Date {
@@ -86,6 +87,7 @@ function getRemainingTime(createdAt: string): string {
 export default function RiwayatJurnalPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
   const { journals: firestoreJournals, updateJournal, deleteJournal } = useJournals(user?.uid);
 
   // Combine Firestore journals with Dummy Journals (avoiding duplicate IDs)
@@ -268,22 +270,35 @@ export default function RiwayatJurnalPage() {
       )}
 
       {/* ══════════════ TopAppBar ══════════════ */}
-      <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#f9f9f8] shadow-sm">
+      <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-[#f9f9f8] shadow-sm">
         <AppHeaderBrand />
-        <Link href="/profil" className="flex items-center">
-          {user.photoURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.photoURL}
-              alt="Profil"
-              className="w-9 h-9 rounded-full border-2 border-[#005c55]/20 hover:border-[#005c55]/50 transition-colors"
-            />
-          ) : (
-            <span className="material-symbols-outlined text-[#005c55] hover:opacity-80 transition-opacity p-2">
-              account_circle
+        <div className="flex items-center gap-2">
+          {/* Dark Mode Quick Toggle */}
+          <button
+            type="button"
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            className="text-[#005c55] p-2 rounded-lg hover:bg-[#0f766e]/10 transition-colors active:scale-95 duration-150"
+            aria-label={resolvedTheme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}
+            title={resolvedTheme === 'dark' ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
+          >
+            <span className="material-symbols-outlined text-[22px]">
+              {resolvedTheme === 'dark' ? 'light_mode' : 'dark_mode'}
             </span>
-          )}
-        </Link>
+          </button>
+          {/* Profile Link */}
+          <Link href="/profil" className="flex items-center">
+            {user.photoURL ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.photoURL}
+                alt="Profil"
+                className="w-9 h-9 rounded-full border-2 border-[#005c55]/20 hover:border-[#005c55]/50 transition-colors"
+              />
+            ) : (
+              <span className="material-symbols-outlined text-[#005c55] hover:opacity-80 transition-opacity p-1 text-[28px]">account_circle</span>
+            )}
+          </Link>
+        </div>
       </header>
 
       {/* ══════════════ Main Content ══════════════ */}
