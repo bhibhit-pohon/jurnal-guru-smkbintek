@@ -94,11 +94,11 @@ export default function IsiJurnalPage() {
   /* ── GPS distance ── */
   const distance = coords
     ? calculateDistance(
-        coords.latitude,
-        coords.longitude,
-        SCHOOL_COORDS.latitude,
-        SCHOOL_COORDS.longitude
-      )
+      coords.latitude,
+      coords.longitude,
+      SCHOOL_COORDS.latitude,
+      SCHOOL_COORDS.longitude
+    )
     : null;
   const isWithinRadius = distance !== null && distance <= SCHOOL_COORDS.toleranceRadius;
 
@@ -167,54 +167,54 @@ export default function IsiJurnalPage() {
     }
   }, [editingField, editValue, updateField]);
 
-/**
- * Kompresi foto bukti kelas menggunakan HTML5 Canvas.
- * Target: < 150KB — cukup jelas untuk melihat guru + siswa di kelas.
- * Firestore max doc size = 1MB. Foto disimpan sebagai base64 di dokumen.
- * maxWidth=480 / quality=0.45 → rata-rata hasilnya 60-130KB.
- */
-function compressImageFile(file: File): Promise<string> {
-  const MAX_DIM = 480;   // px — cukup jelas untuk bukti foto kelas
-  const QUALITY = 0.45;  // JPEG quality — target ~80-130KB
+  /**
+   * Kompresi foto bukti kelas menggunakan HTML5 Canvas.
+   * Target: < 150KB — cukup jelas untuk melihat guru + siswa di kelas.
+   * Firestore max doc size = 1MB. Foto disimpan sebagai base64 di dokumen.
+   * maxWidth=480 / quality=0.45 → rata-rata hasilnya 60-130KB.
+   */
+  function compressImageFile(file: File): Promise<string> {
+    const MAX_DIM = 480;   // px — cukup jelas untuk bukti foto kelas
+    const QUALITY = 0.45;  // JPEG quality — target ~80-130KB
 
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        let { width, height } = img;
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          let { width, height } = img;
 
-        // Scale down proportionally
-        if (width > height) {
-          if (width > MAX_DIM) { height = Math.round((height * MAX_DIM) / width); width = MAX_DIM; }
-        } else {
-          if (height > MAX_DIM) { width = Math.round((width * MAX_DIM) / height); height = MAX_DIM; }
-        }
+          // Scale down proportionally
+          if (width > height) {
+            if (width > MAX_DIM) { height = Math.round((height * MAX_DIM) / width); width = MAX_DIM; }
+          } else {
+            if (height > MAX_DIM) { width = Math.round((width * MAX_DIM) / height); height = MAX_DIM; }
+          }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { resolve(event.target?.result as string); return; }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(event.target?.result as string); return; }
 
-        ctx.drawImage(img, 0, 0, width, height);
-        let result = canvas.toDataURL('image/jpeg', QUALITY);
+          ctx.drawImage(img, 0, 0, width, height);
+          let result = canvas.toDataURL('image/jpeg', QUALITY);
 
-        // Safety net: jika masih > 200KB, kompres lebih dalam
-        const sizeKB = (result.length * 3) / 4 / 1024;
-        if (sizeKB > 200) {
-          result = canvas.toDataURL('image/jpeg', 0.3);
-        }
+          // Safety net: jika masih > 200KB, kompres lebih dalam
+          const sizeKB = (result.length * 3) / 4 / 1024;
+          if (sizeKB > 200) {
+            result = canvas.toDataURL('image/jpeg', 0.3);
+          }
 
-        resolve(result);
+          resolve(result);
+        };
+        img.onerror = reject;
       };
-      img.onerror = reject;
-    };
-    reader.onerror = reject;
-  });
-}
+      reader.onerror = reject;
+    });
+  }
 
   /* ── Camera capture ── */
   const handleCameraCapture = useCallback(
@@ -312,7 +312,7 @@ function compressImageFile(file: File): Promise<string> {
         lokasi: coords ? { latitude: coords.latitude, longitude: coords.longitude } : null,
         lokasiValid: Boolean(isWithinRadius),
         jarakDariSekolah: distance ? Math.round(distance) : 0,
-        uid: user.uid,
+        uid: user.uid || '',
         displayName: user.displayName || 'Guru',
         email: user.email || '',
       };
@@ -375,9 +375,8 @@ function compressImageFile(file: File): Promise<string> {
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[999] animate-slide-down">
           <div
-            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${
-              toast.type === 'error' ? 'bg-[#ba1a1a]' : toast.type === 'success' ? 'bg-[#005c55]' : 'bg-[#5a5f64]'
-            }`}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${toast.type === 'error' ? 'bg-[#ba1a1a]' : toast.type === 'success' ? 'bg-[#005c55]' : 'bg-[#5a5f64]'
+              }`}
           >
             <span className="material-symbols-outlined text-[18px]">
               {toast.type === 'error' ? 'error' : toast.type === 'success' ? 'check_circle' : 'info'}
@@ -442,454 +441,452 @@ function compressImageFile(file: File): Promise<string> {
           <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb]" />
           <div className="p-4 flex flex-col gap-4">
 
-          <h3 className="text-base font-semibold text-[#1a1c1c] font-[Inter] flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#005c55] text-[20px]">school</span>
-            Info Mengajar
-          </h3>
+            <h3 className="text-base font-semibold text-[#1a1c1c] font-[Inter] flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#005c55] text-[20px]">school</span>
+              Info Mengajar
+            </h3>
 
-          {/* Mapel */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
-              Mata Pelajaran <span className="text-[#ba1a1a]">*</span>
-            </label>
-            {!isCustomMapel ? (
-              <select
-                value={form.mapel}
-                onChange={(e) => {
-                  if (e.target.value === '__custom__') {
-                    setIsCustomMapel(true);
-                    updateField('mapel', '');
-                  } else {
-                    updateField('mapel', e.target.value);
-                  }
-                }}
-                className="bg-white border border-[#E7E5E4] rounded-md px-4 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
-              >
-                <option value="">Pilih Mata Pelajaran</option>
-                {mapelList.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-                <option value="__custom__">✏️ + Ketik Manual...</option>
-              </select>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  type="text"
+            {/* Mapel */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
+                Mata Pelajaran <span className="text-[#ba1a1a]">*</span>
+              </label>
+              {!isCustomMapel ? (
+                <select
                   value={form.mapel}
-                  onChange={(e) => updateField('mapel', e.target.value)}
-                  placeholder="Ketik nama mata pelajaran..."
-                  className="bg-white border border-[#005c55] rounded-md px-4 py-2 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCustomMapel(false);
-                    updateField('mapel', '');
-                  }}
-                  className="text-xs text-[#005c55] underline shrink-0 px-2"
-                >
-                  Pilih List
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Kelas + Ruang (side by side) */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Kelas */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
-                Kelas <span className="text-[#ba1a1a]">*</span>
-              </label>
-              {!isCustomKelas ? (
-                <select
-                  value={form.kelas}
                   onChange={(e) => {
                     if (e.target.value === '__custom__') {
-                      setIsCustomKelas(true);
-                      updateField('kelas', '');
+                      setIsCustomMapel(true);
+                      updateField('mapel', '');
                     } else {
-                      updateField('kelas', e.target.value);
+                      updateField('mapel', e.target.value);
                     }
                   }}
-                  className="bg-white border border-[#E7E5E4] rounded-md px-3 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
+                  className="bg-white border border-[#E7E5E4] rounded-md px-4 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
                 >
-                  <option value="">Pilih</option>
-                  {kelasList.map((k) => (
-                    <option key={k} value={k}>{k}</option>
+                  <option value="">Pilih Mata Pelajaran</option>
+                  {mapelList.map((m) => (
+                    <option key={m} value={m}>{m}</option>
                   ))}
                   <option value="__custom__">✏️ + Ketik Manual...</option>
                 </select>
               ) : (
-                <div className="flex flex-col gap-1">
+                <div className="flex gap-2">
                   <input
                     type="text"
+                    value={form.mapel}
+                    onChange={(e) => updateField('mapel', e.target.value)}
+                    placeholder="Ketik nama mata pelajaran..."
+                    className="bg-white border border-[#005c55] rounded-md px-4 py-2 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomMapel(false);
+                      updateField('mapel', '');
+                    }}
+                    className="text-xs text-[#005c55] underline shrink-0 px-2"
+                  >
+                    Pilih List
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Kelas + Ruang (side by side) */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Kelas */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
+                  Kelas <span className="text-[#ba1a1a]">*</span>
+                </label>
+                {!isCustomKelas ? (
+                  <select
                     value={form.kelas}
-                    onChange={(e) => updateField('kelas', e.target.value)}
-                    placeholder="Ketik kelas..."
-                    className="bg-white border border-[#005c55] rounded-md px-3 py-2 text-sm font-[Inter] text-[#1a1c1c] w-full focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCustomKelas(false);
-                      updateField('kelas', '');
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setIsCustomKelas(true);
+                        updateField('kelas', '');
+                      } else {
+                        updateField('kelas', e.target.value);
+                      }
                     }}
-                    className="text-[11px] text-[#005c55] underline text-left"
+                    className="bg-white border border-[#E7E5E4] rounded-md px-3 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
                   >
-                    Pilih List
-                  </button>
-                </div>
-              )}
-            </div>
+                    <option value="">Pilih</option>
+                    {kelasList.map((k) => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                    <option value="__custom__">✏️ + Ketik Manual...</option>
+                  </select>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    <input
+                      type="text"
+                      value={form.kelas}
+                      onChange={(e) => updateField('kelas', e.target.value)}
+                      placeholder="Ketik kelas..."
+                      className="bg-white border border-[#005c55] rounded-md px-3 py-2 text-sm font-[Inter] text-[#1a1c1c] w-full focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomKelas(false);
+                        updateField('kelas', '');
+                      }}
+                      className="text-[11px] text-[#005c55] underline text-left"
+                    >
+                      Pilih List
+                    </button>
+                  </div>
+                )}
+              </div>
 
-            {/* Ruang */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
-                Ruang <span className="text-[#ba1a1a]">*</span>
-              </label>
-              {!isCustomRuang ? (
-                <select
-                  value={form.ruang}
-                  onChange={(e) => {
-                    if (e.target.value === '__custom__') {
-                      setIsCustomRuang(true);
-                      updateField('ruang', '');
-                    } else {
-                      updateField('ruang', e.target.value);
-                    }
-                  }}
-                  className="bg-white border border-[#E7E5E4] rounded-md px-3 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
-                >
-                  <option value="">Pilih</option>
-                  {ruangList.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                  <option value="__custom__">✏️ + Ketik Manual...</option>
-                </select>
-              ) : (
-                <div className="flex flex-col gap-1">
-                  <input
-                    type="text"
+              {/* Ruang */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
+                  Ruang <span className="text-[#ba1a1a]">*</span>
+                </label>
+                {!isCustomRuang ? (
+                  <select
                     value={form.ruang}
-                    onChange={(e) => updateField('ruang', e.target.value)}
-                    placeholder="Ketik ruang..."
-                    className="bg-white border border-[#005c55] rounded-md px-3 py-2 text-sm font-[Inter] text-[#1a1c1c] w-full focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCustomRuang(false);
-                      updateField('ruang', '');
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setIsCustomRuang(true);
+                        updateField('ruang', '');
+                      } else {
+                        updateField('ruang', e.target.value);
+                      }
                     }}
-                    className="text-[11px] text-[#005c55] underline text-left"
+                    className="bg-white border border-[#E7E5E4] rounded-md px-3 py-2.5 text-base font-[Inter] text-[#1a1c1c] w-full focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow appearance-none"
                   >
-                    Pilih List
+                    <option value="">Pilih</option>
+                    {ruangList.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                    <option value="__custom__">✏️ + Ketik Manual...</option>
+                  </select>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    <input
+                      type="text"
+                      value={form.ruang}
+                      onChange={(e) => updateField('ruang', e.target.value)}
+                      placeholder="Ketik ruang..."
+                      className="bg-white border border-[#005c55] rounded-md px-3 py-2 text-sm font-[Inter] text-[#1a1c1c] w-full focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomRuang(false);
+                        updateField('ruang', '');
+                      }}
+                      className="text-[11px] text-[#005c55] underline text-left"
+                    >
+                      Pilih List
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Rentang Jam */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
+                Rentang Jam Mengajar <span className="text-[#ba1a1a]">*</span>
+              </label>
+              <p className="text-[11px] text-[#6e7977] font-[Inter] -mt-1">
+                Tap jam mulai, lalu tap jam selesai
+              </p>
+              <div className="flex gap-1.5 flex-wrap">
+                {JAM_OPTIONS.map((jam) => (
+                  <button
+                    key={jam}
+                    type="button"
+                    onClick={() => handleJamClick(jam)}
+                    className={`w-10 h-10 rounded-lg text-sm font-semibold font-[Inter] transition-all duration-150 active:scale-95 ${isJamSelected(jam)
+                        ? 'bg-[#005c55] text-white shadow-sm'
+                        : 'bg-white border border-[#E7E5E4] text-[#3e4947] hover:bg-[#eeeeed]'
+                      }`}
+                  >
+                    {jam}
                   </button>
-                </div>
+                ))}
+              </div>
+              {form.jamMulai !== null && form.jamSelesai !== null && (
+                <p className="text-xs text-[#005c55] font-medium font-[Inter]">
+                  Jam ke-{form.jamMulai} s/d Jam ke-{form.jamSelesai}
+                </p>
               )}
             </div>
-          </div>
-
-          {/* Rentang Jam */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
-              Rentang Jam Mengajar <span className="text-[#ba1a1a]">*</span>
-            </label>
-            <p className="text-[11px] text-[#6e7977] font-[Inter] -mt-1">
-              Tap jam mulai, lalu tap jam selesai
-            </p>
-            <div className="flex gap-1.5 flex-wrap">
-              {JAM_OPTIONS.map((jam) => (
-                <button
-                  key={jam}
-                  type="button"
-                  onClick={() => handleJamClick(jam)}
-                  className={`w-10 h-10 rounded-lg text-sm font-semibold font-[Inter] transition-all duration-150 active:scale-95 ${
-                    isJamSelected(jam)
-                      ? 'bg-[#005c55] text-white shadow-sm'
-                      : 'bg-white border border-[#E7E5E4] text-[#3e4947] hover:bg-[#eeeeed]'
-                  }`}
-                >
-                  {jam}
-                </button>
-              ))}
-            </div>
-            {form.jamMulai !== null && form.jamSelesai !== null && (
-              <p className="text-xs text-[#005c55] font-medium font-[Inter]">
-                Jam ke-{form.jamMulai} s/d Jam ke-{form.jamSelesai}
-              </p>
-            )}
-          </div>
-        </div></section>
+          </div></section>
 
         {/* ═══════════ Card 2: Kehadiran ═══════════ */}
         <section className="bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg flex flex-col overflow-hidden">
           <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb]" />
           <div className="p-4 flex flex-col gap-4">
 
-          <h3 className="text-base font-semibold text-[#1a1c1c] font-[Inter] flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#005c55] text-[20px]">groups</span>
-            Kehadiran Siswa
-          </h3>
+            <h3 className="text-base font-semibold text-[#1a1c1c] font-[Inter] flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#005c55] text-[20px]">groups</span>
+              Kehadiran Siswa
+            </h3>
 
-          {/* 2x2 Grid */}
-          <div className="grid grid-cols-2 gap-2">
-            {ATTENDANCE_LABELS.map(({ key, label, color, borderColor }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => openAttendanceEdit(key)}
-                className={`bg-white border ${borderColor} rounded-lg p-3 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-[#eeeeed] transition-colors active:scale-95 duration-150`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-4xl font-bold font-[Inter] ${color}`}>
-                    {form[key]}
+            {/* 2x2 Grid */}
+            <div className="grid grid-cols-2 gap-2">
+              {ATTENDANCE_LABELS.map(({ key, label, color, borderColor }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => openAttendanceEdit(key)}
+                  className={`bg-white border ${borderColor} rounded-lg p-3 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-[#eeeeed] transition-colors active:scale-95 duration-150`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-4xl font-bold font-[Inter] ${color}`}>
+                      {form[key]}
+                    </span>
+                    <span className={`material-symbols-outlined ${color} text-[16px]`}>edit</span>
+                  </div>
+                  <span className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947] uppercase tracking-wide">
+                    {label}
                   </span>
-                  <span className={`material-symbols-outlined ${color} text-[16px]`}>edit</span>
-                </div>
-                <span className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947] uppercase tracking-wide">
-                  {label}
-                </span>
-              </button>
-            ))}
-          </div>
+                </button>
+              ))}
+            </div>
 
-          {/* Nama Siswa Absen */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
-              Nama Siswa yang Tidak Hadir
-            </label>
-            <textarea
-              value={form.namaSiswaAbsen}
-              onChange={(e) => updateField('namaSiswaAbsen', e.target.value)}
-              rows={2}
-              className="bg-white border border-[#E7E5E4] rounded-md px-4 py-2 text-sm font-[Inter] text-[#1a1c1c] w-full resize-none focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow"
-              placeholder="Contoh: Budi (Sakit), Ani (Alpha)..."
-            />
-          </div>
+            {/* Nama Siswa Absen */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
+                Nama Siswa yang Tidak Hadir
+              </label>
+              <textarea
+                value={form.namaSiswaAbsen}
+                onChange={(e) => updateField('namaSiswaAbsen', e.target.value)}
+                rows={2}
+                className="bg-white border border-[#E7E5E4] rounded-md px-4 py-2 text-sm font-[Inter] text-[#1a1c1c] w-full resize-none focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow"
+                placeholder="Contoh: Budi (Sakit), Ani (Alpha)..."
+              />
+            </div>
 
-          {/* Catatan */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
-              Catatan Jurnal
-            </label>
-            <textarea
-              value={form.catatan}
-              onChange={(e) => updateField('catatan', e.target.value)}
-              rows={3}
-              className="bg-white border border-[#E7E5E4] rounded-md px-4 py-2 text-sm font-[Inter] text-[#1a1c1c] w-full resize-none focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow"
-              placeholder="Catatan aktivitas mengajar, kejadian khusus..."
-            />
-          </div>
-        </div></section>
+            {/* Catatan */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
+                Catatan Jurnal
+              </label>
+              <textarea
+                value={form.catatan}
+                onChange={(e) => updateField('catatan', e.target.value)}
+                rows={3}
+                className="bg-white border border-[#E7E5E4] rounded-md px-4 py-2 text-sm font-[Inter] text-[#1a1c1c] w-full resize-none focus:outline-none focus:border-[#005c55] focus:shadow-[0_0_0_1px_#005c55] transition-shadow"
+                placeholder="Catatan aktivitas mengajar, kejadian khusus..."
+              />
+            </div>
+          </div></section>
 
         {/* ═══════════ Card 3: Validasi & Bukti ═══════════ */}
         <section className="bg-[#F5F5F4] border border-[#E7E5E4] rounded-lg flex flex-col overflow-hidden">
           <div className="h-[3px] bg-gradient-to-r from-[#005c55] via-[#0f766e] to-[#80d5cb]" />
           <div className="p-4 flex flex-col gap-4">
 
-          <h3 className="text-base font-semibold text-[#1a1c1c] font-[Inter] flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#005c55] text-[20px]">verified</span>
-            Validasi & Bukti
-          </h3>
+            <h3 className="text-base font-semibold text-[#1a1c1c] font-[Inter] flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#005c55] text-[20px]">verified</span>
+              Validasi & Bukti
+            </h3>
 
-          {/* ── Foto Kelas ── */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
-              Foto Kelas <span className="text-[#ba1a1a]">*</span>
-              <span className="text-[#6e7977] font-normal ml-1">(maks 2MB)</span>
-            </label>
+            {/* ── Foto Kelas ── */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
+                Foto Kelas <span className="text-[#ba1a1a]">*</span>
+                <span className="text-[#6e7977] font-normal ml-1">(maks 2MB)</span>
+              </label>
 
-            {form.fotoKelas ? (
-              <div className="relative rounded-lg overflow-hidden border border-[#E7E5E4]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={form.fotoKelas}
-                  alt="Foto kelas"
-                  className="w-full h-[180px] object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    updateField('fotoKelas', null);
-                    if (cameraInputRef.current) cameraInputRef.current.value = '';
-                  }}
-                  className="absolute top-2 right-2 bg-[#ba1a1a] text-white p-1.5 rounded-full shadow-md hover:opacity-90 transition-opacity"
-                >
-                  <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => cameraInputRef.current?.click()}
-                className="bg-white border border-dashed border-[#bdc9c6] rounded-lg p-6 flex flex-col gap-2 items-center justify-center cursor-pointer hover:bg-[#eeeeed] transition-colors"
-              >
-                <span className="material-symbols-outlined text-[#005c55] text-[32px]">
-                  photo_camera
-                </span>
-                <span className="text-sm font-medium font-[Inter] text-[#005c55]">
-                  Ambil Foto Kelas
-                </span>
-                <span className="text-[11px] text-[#6e7977] font-[Inter]">
-                  Kamera saja — galeri tidak tersedia
-                </span>
-              </button>
-            )}
-
-            {/* Hidden camera input — capture="environment" forces camera, accept limits to images */}
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleCameraCapture}
-              className="hidden"
-            />
-          </div>
-
-          {/* ── Tanda Tangan ── */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
-              Tanda Tangan Guru
-            </label>
-
-            {form.tandaTangan ? (
-              <div className="relative rounded-lg overflow-hidden border border-[#E7E5E4] bg-white">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={form.tandaTangan}
-                  alt="Tanda tangan"
-                  className="w-full h-[120px] object-contain bg-white"
-                />
-                <button
-                  type="button"
-                  onClick={clearSignature}
-                  className="absolute top-2 right-2 bg-[#5a5f64] text-white p-1.5 rounded-full shadow-md hover:opacity-90 transition-opacity"
-                >
-                  <span className="material-symbols-outlined text-[18px]">refresh</span>
-                </button>
-              </div>
-            ) : (
-              <div className="bg-white border border-[#E7E5E4] rounded-lg flex flex-col relative overflow-hidden">
-                <div className="absolute top-2 left-3 text-[10px] font-medium font-[Inter] text-[#6e7977] uppercase tracking-wider z-10 pointer-events-none">
-                  Tanda tangan di sini ↓
+              {form.fotoKelas ? (
+                <div className="relative rounded-lg overflow-hidden border border-[#E7E5E4]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={form.fotoKelas}
+                    alt="Foto kelas"
+                    className="w-full h-[180px] object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateField('fotoKelas', null);
+                      if (cameraInputRef.current) cameraInputRef.current.value = '';
+                    }}
+                    className="absolute top-2 right-2 bg-[#ba1a1a] text-white p-1.5 rounded-full shadow-md hover:opacity-90 transition-opacity"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
                 </div>
-                <SignatureCanvas
-                  ref={sigRef}
-                  canvasProps={{
-                    className: 'w-full h-[130px] cursor-crosshair',
-                  }}
-                  penColor="#1a1c1c"
-                  backgroundColor="white"
-                />
-                <div className="flex gap-2 p-2 border-t border-[#E7E5E4]">
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="bg-white border border-dashed border-[#bdc9c6] rounded-lg p-6 flex flex-col gap-2 items-center justify-center cursor-pointer hover:bg-[#eeeeed] transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[#005c55] text-[32px]">
+                    photo_camera
+                  </span>
+                  <span className="text-sm font-medium font-[Inter] text-[#005c55]">
+                    Ambil Foto Kelas
+                  </span>
+                  <span className="text-[11px] text-[#6e7977] font-[Inter]">
+                    Kamera saja — galeri tidak tersedia
+                  </span>
+                </button>
+              )}
+
+              {/* Hidden camera input — capture="environment" forces camera, accept limits to images */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleCameraCapture}
+                className="hidden"
+              />
+            </div>
+
+            {/* ── Tanda Tangan ── */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
+                Tanda Tangan Guru
+              </label>
+
+              {form.tandaTangan ? (
+                <div className="relative rounded-lg overflow-hidden border border-[#E7E5E4] bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={form.tandaTangan}
+                    alt="Tanda tangan"
+                    className="w-full h-[120px] object-contain bg-white"
+                  />
                   <button
                     type="button"
                     onClick={clearSignature}
-                    className="flex-1 py-1.5 rounded text-xs font-medium text-[#3e4947] border border-[#E7E5E4] hover:bg-[#f3f4f3] transition-colors font-[Inter] flex items-center justify-center gap-1"
+                    className="absolute top-2 right-2 bg-[#5a5f64] text-white p-1.5 rounded-full shadow-md hover:opacity-90 transition-opacity"
                   >
-                    <span className="material-symbols-outlined text-[14px]">undo</span>
-                    Hapus
+                    <span className="material-symbols-outlined text-[18px]">refresh</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={saveSignature}
-                    className="flex-1 py-1.5 rounded text-xs font-medium text-white bg-[#005c55] hover:opacity-90 transition-opacity font-[Inter] flex items-center justify-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">check</span>
-                    Simpan TTD
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ── Lokasi ── */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
-              Lokasi Mengajar <span className="text-[#ba1a1a]">*</span>
-            </label>
-
-            <div className="bg-white border border-[#E7E5E4] rounded-lg p-4 flex flex-col gap-3">
-              {/* Status */}
-              {geoLoading ? (
-                <div className="flex items-center gap-3">
-                  <div className="bg-[#0f766e]/10 p-2 rounded-full">
-                    <svg className="animate-spin h-5 w-5 text-[#005c55]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium font-[Inter] text-[#1a1c1c]">Mendeteksi lokasi...</span>
-                    <span className="text-xs font-[Inter] text-[#6e7977]">Mohon izinkan akses lokasi</span>
-                  </div>
-                </div>
-              ) : geoError ? (
-                <div className="flex items-center gap-3">
-                  <div className="bg-[#ffdad6] p-2 rounded-full">
-                    <span className="material-symbols-outlined text-[#ba1a1a] text-[20px]">location_off</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium font-[Inter] text-[#ba1a1a]">GPS Tidak Tersedia</span>
-                    <span className="text-xs font-[Inter] text-[#6e7977]">Aktifkan GPS dan izinkan akses lokasi</span>
-                  </div>
-                </div>
-              ) : isWithinRadius ? (
-                <div className="flex items-center gap-3">
-                  <div className="bg-[#0f766e]/10 p-2 rounded-full">
-                    <span className="material-symbols-outlined text-[#005c55] text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                      check_circle
-                    </span>
-                  </div>
-                  <div className="flex flex-col flex-1">
-                    <span className="text-sm font-medium font-[Inter] text-[#005c55]">Sesuai Lokasi</span>
-                    <span className="text-xs font-[Inter] text-[#6e7977]">
-                      {SCHOOL_COORDS.name} • Jarak: {Math.round(distance!)}m
-                    </span>
-                  </div>
-                  <span className="material-symbols-outlined text-[#005c55]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    verified
-                  </span>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="bg-[#ffdad6] p-2 rounded-full">
-                    <span className="material-symbols-outlined text-[#ba1a1a] text-[20px]">location_off</span>
+                <div className="bg-white border border-[#E7E5E4] rounded-lg flex flex-col relative overflow-hidden">
+                  <div className="absolute top-2 left-3 text-[10px] font-medium font-[Inter] text-[#6e7977] uppercase tracking-wider z-10 pointer-events-none">
+                    Tanda tangan di sini ↓
                   </div>
-                  <div className="flex flex-col flex-1">
-                    <span className="text-sm font-medium font-[Inter] text-[#ba1a1a]">Di Luar Area</span>
-                    <span className="text-xs font-[Inter] text-[#6e7977]">
-                      Jarak: {Math.round(distance!)}m — melebihi batas {SCHOOL_COORDS.toleranceRadius}m
-                    </span>
+                  <SignatureCanvas
+                    ref={sigRef}
+                    canvasProps={{
+                      className: 'w-full h-[130px] cursor-crosshair',
+                    }}
+                    penColor="#1a1c1c"
+                    backgroundColor="white"
+                  />
+                  <div className="flex gap-2 p-2 border-t border-[#E7E5E4]">
+                    <button
+                      type="button"
+                      onClick={clearSignature}
+                      className="flex-1 py-1.5 rounded text-xs font-medium text-[#3e4947] border border-[#E7E5E4] hover:bg-[#f3f4f3] transition-colors font-[Inter] flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">undo</span>
+                      Hapus
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveSignature}
+                      className="flex-1 py-1.5 rounded text-xs font-medium text-white bg-[#005c55] hover:opacity-90 transition-opacity font-[Inter] flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">check</span>
+                      Simpan TTD
+                    </button>
                   </div>
-                  <span className="material-symbols-outlined text-[#ba1a1a]">error</span>
-                </div>
-              )}
-
-              {/* Coordinates display */}
-              {coords && (
-                <div className="text-[11px] font-[Inter] text-[#6e7977] bg-[#f3f4f3] rounded px-3 py-1.5 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[14px]">gps_fixed</span>
-                  {coords.latitude.toFixed(6)}, {coords.longitude.toFixed(6)}
                 </div>
               )}
             </div>
-          </div>
-        </div></section>
+
+            {/* ── Lokasi ── */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
+                Lokasi Mengajar <span className="text-[#ba1a1a]">*</span>
+              </label>
+
+              <div className="bg-white border border-[#E7E5E4] rounded-lg p-4 flex flex-col gap-3">
+                {/* Status */}
+                {geoLoading ? (
+                  <div className="flex items-center gap-3">
+                    <div className="bg-[#0f766e]/10 p-2 rounded-full">
+                      <svg className="animate-spin h-5 w-5 text-[#005c55]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium font-[Inter] text-[#1a1c1c]">Mendeteksi lokasi...</span>
+                      <span className="text-xs font-[Inter] text-[#6e7977]">Mohon izinkan akses lokasi</span>
+                    </div>
+                  </div>
+                ) : geoError ? (
+                  <div className="flex items-center gap-3">
+                    <div className="bg-[#ffdad6] p-2 rounded-full">
+                      <span className="material-symbols-outlined text-[#ba1a1a] text-[20px]">location_off</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium font-[Inter] text-[#ba1a1a]">GPS Tidak Tersedia</span>
+                      <span className="text-xs font-[Inter] text-[#6e7977]">Aktifkan GPS dan izinkan akses lokasi</span>
+                    </div>
+                  </div>
+                ) : isWithinRadius ? (
+                  <div className="flex items-center gap-3">
+                    <div className="bg-[#0f766e]/10 p-2 rounded-full">
+                      <span className="material-symbols-outlined text-[#005c55] text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        check_circle
+                      </span>
+                    </div>
+                    <div className="flex flex-col flex-1">
+                      <span className="text-sm font-medium font-[Inter] text-[#005c55]">Sesuai Lokasi</span>
+                      <span className="text-xs font-[Inter] text-[#6e7977]">
+                        {SCHOOL_COORDS.name} • Jarak: {Math.round(distance!)}m
+                      </span>
+                    </div>
+                    <span className="material-symbols-outlined text-[#005c55]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      verified
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <div className="bg-[#ffdad6] p-2 rounded-full">
+                      <span className="material-symbols-outlined text-[#ba1a1a] text-[20px]">location_off</span>
+                    </div>
+                    <div className="flex flex-col flex-1">
+                      <span className="text-sm font-medium font-[Inter] text-[#ba1a1a]">Di Luar Area</span>
+                      <span className="text-xs font-[Inter] text-[#6e7977]">
+                        Jarak: {Math.round(distance!)}m — melebihi batas {SCHOOL_COORDS.toleranceRadius}m
+                      </span>
+                    </div>
+                    <span className="material-symbols-outlined text-[#ba1a1a]">error</span>
+                  </div>
+                )}
+
+                {/* Coordinates display */}
+                {coords && (
+                  <div className="text-[11px] font-[Inter] text-[#6e7977] bg-[#f3f4f3] rounded px-3 py-1.5 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[14px]">gps_fixed</span>
+                    {coords.latitude.toFixed(6)}, {coords.longitude.toFixed(6)}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div></section>
 
         {/* ═══════════ Submit Button ═══════════ */}
         <button
           type="button"
           onClick={handleSimpan}
           disabled={isSaving || !isWithinRadius}
-          className={`w-full text-sm leading-5 font-medium tracking-[0.01em] font-[Inter] py-4 rounded-full shadow-sm mt-2 transition-all active:scale-[0.98] duration-150 disabled:cursor-not-allowed ${
-            isWithinRadius
+          className={`w-full text-sm leading-5 font-medium tracking-[0.01em] font-[Inter] py-4 rounded-full shadow-sm mt-2 transition-all active:scale-[0.98] duration-150 disabled:cursor-not-allowed ${isWithinRadius
               ? 'bg-[#005c55] text-white hover:opacity-90 disabled:opacity-50'
               : 'bg-[#E7E5E4] text-[#6e7977] cursor-not-allowed'
-          }`}
+            }`}
         >
           {isSaving ? (
             <span className="flex items-center justify-center gap-2">

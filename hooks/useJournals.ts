@@ -64,17 +64,19 @@ export function useJournals(uid?: string, isAdmin = false) {
 
     let q;
     if (isAdmin) {
-      // Admin: lihat 100 jurnal terbaru — single field orderBy tidak butuh composite index
+      // Admin: lihat 100 jurnal terbaru — cukup untuk dashboard, mencegah scan koleksi penuh
       q = query(
         collection(db, 'journals'),
         orderBy('createdAt', 'desc'),
         limit(100)
       );
     } else {
-      // Guru: query where uid saja (tidak butuh composite index), sorting dilakukan di JavaScript
+      // Guru: hanya jurnal milik sendiri, max 200
       q = query(
         collection(db, 'journals'),
-        where('uid', '==', uid)
+        where('uid', '==', uid),
+        orderBy('createdAt', 'desc'),
+        limit(200)
       );
     }
 
@@ -111,10 +113,6 @@ export function useJournals(uid?: string, isAdmin = false) {
             ...(d.email && { email: d.email }),
           } as JournalEntry;
         });
-
-        // Urutkan terbaru di JavaScript — aman 100% tanpa composite index
-        data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
         setJournals(data);
         setLoading(false);
         setError(null);

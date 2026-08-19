@@ -23,8 +23,23 @@ export default function AdminDashboardPage() {
     true
   );
 
-  // Admin view uses real Firestore journals
-  const allJournals = firestoreJournals;
+  // Combine Firestore journals with DUMMY_JOURNALS for rich demonstration data
+  const allJournals = useMemo(() => {
+    const fsIds = new Set(firestoreJournals.map((j) => j.id));
+    const uniqueDummies = DUMMY_JOURNALS.map((d) => ({
+      ...d,
+      displayName: d.mapel.includes('Matematika')
+        ? 'Teguh Prasetyo, S.Pd'
+        : d.mapel.includes('Inggris')
+          ? 'Siti Nurhaliza, M.Pd'
+          : d.mapel.includes('Teknik')
+            ? 'Budi Santoso, S.Kom'
+            : 'Guru SMK Bintek',
+      email: 'guru@smkbintek.sch.id',
+    }));
+    const filteredDummies = uniqueDummies.filter((d) => !fsIds.has(d.id));
+    return [...firestoreJournals, ...filteredDummies];
+  }, [firestoreJournals]);
 
   // Master Data Hook
   const {
@@ -303,13 +318,12 @@ export default function AdminDashboardPage() {
       {toast && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-md w-full px-4 transition-all duration-300">
           <div
-            className={`flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl text-sm font-semibold text-white border border-white/20 backdrop-blur-md ${
-              toast.type === 'error'
+            className={`flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl text-sm font-semibold text-white border border-white/20 backdrop-blur-md ${toast.type === 'error'
                 ? 'bg-[#ba1a1a]'
                 : toast.type === 'success'
-                ? 'bg-[#005c55]'
-                : 'bg-[#0f766e]'
-            }`}
+                  ? 'bg-[#005c55]'
+                  : 'bg-[#0f766e]'
+              }`}
           >
             <span className="material-symbols-outlined text-[22px] shrink-0">
               {toast.type === 'error' ? 'error' : toast.type === 'success' ? 'check_circle' : 'info'}
@@ -355,9 +369,8 @@ export default function AdminDashboardPage() {
                     setActiveTab(item.id as any);
                     setIsSidebarOpen(false);
                   }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === item.id ? 'bg-white/20 text-white font-semibold' : 'text-[#a3faef]/80'
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === item.id ? 'bg-white/20 text-white font-semibold' : 'text-[#a3faef]/80'
+                    }`}
                 >
                   <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                   <span>{item.label}</span>
@@ -406,11 +419,10 @@ export default function AdminDashboardPage() {
               key={item.id}
               onClick={() => setActiveTab(item.id as any)}
               title={item.label}
-              className={`flex items-center gap-3 px-3 xl:px-4 py-3 rounded-lg text-sm font-medium transition-colors justify-center xl:justify-start ${
-                activeTab === item.id
+              className={`flex items-center gap-3 px-3 xl:px-4 py-3 rounded-lg text-sm font-medium transition-colors justify-center xl:justify-start ${activeTab === item.id
                   ? 'bg-white/15 text-white font-semibold border-l-4 border-[#a3faef]'
                   : 'text-[#a3faef]/80 hover:bg-white/10 hover:text-white'
-              }`}
+                }`}
             >
               <span className="material-symbols-outlined text-[20px] shrink-0">{item.icon}</span>
               <span className="hidden xl:inline truncate">{item.label}</span>
@@ -460,12 +472,12 @@ export default function AdminDashboardPage() {
               {activeTab === 'jurnal'
                 ? '📋 Rekapitulasi Jurnal Guru'
                 : activeTab === 'overview'
-                ? '📊 Dashboard Analisis & Statistik'
-                : activeTab === 'guru'
-                ? '👥 Monitoring Guru'
-                : activeTab === 'rekap'
-                ? '📅 Rekap Bulanan'
-                : '⚙️ Kelola Data Master'}
+                  ? '📊 Dashboard Analisis & Statistik'
+                  : activeTab === 'guru'
+                    ? '👥 Monitoring Guru'
+                    : activeTab === 'rekap'
+                      ? '📅 Rekap Bulanan'
+                      : '⚙️ Kelola Data Master'}
             </h2>
 
             {!isAdmin && (
@@ -972,7 +984,7 @@ export default function AdminDashboardPage() {
             const nowDate = new Date();
             // Use a key-based approach with the existing state — we'll use a simple local computation
             // For proper month nav, we add useState at top level. For now let's compute current month data.
-            
+
             // Get all unique months from journals
             const availableMonths = Array.from(
               new Set(allJournals.map((j) => {
