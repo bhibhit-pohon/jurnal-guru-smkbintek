@@ -1,3 +1,5 @@
+export const MASTER_DATA_VERSION = 3;
+
 export const MAPEL_OPTIONS = [
   'Pengantar Industri Broadcasting dan Perfilman',
   'Dasar-Dasar Produksi Audio Visual',

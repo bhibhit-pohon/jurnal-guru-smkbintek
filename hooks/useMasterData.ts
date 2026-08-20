@@ -3,14 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { MAPEL_OPTIONS, KELAS_OPTIONS, RUANG_OPTIONS } from '@/lib/constants';
+import { MAPEL_OPTIONS, KELAS_OPTIONS, RUANG_OPTIONS, MASTER_DATA_VERSION } from '@/lib/constants';
 
 export type MasterDataType = 'mapel' | 'kelas' | 'ruang';
 
 const getLocalList = (type: MasterDataType, fallback: string[]): string[] => {
   if (typeof window === 'undefined') return fallback;
   try {
-    const saved = localStorage.getItem(`jurnal_master_${type}`);
+    const saved = localStorage.getItem(`jurnal_master_${type}_v${MASTER_DATA_VERSION}`);
     if (saved !== null) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -24,7 +24,7 @@ const getLocalList = (type: MasterDataType, fallback: string[]): string[] => {
 const setLocalList = (type: MasterDataType, list: string[]) => {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(`jurnal_master_${type}`, JSON.stringify(list));
+    localStorage.setItem(`jurnal_master_${type}_v${MASTER_DATA_VERSION}`, JSON.stringify(list));
   } catch (e) {
     console.error(`LocalStorage write error for ${type}:`, e);
   }
