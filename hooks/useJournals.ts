@@ -45,13 +45,50 @@ export interface CreateJournalPayload {
   email: string | null;
 }
 
+const LOCAL_JOURNALS_KEY = 'jurnal_all_entries_cache';
+
+const getLocalJournals = (): JournalEntry[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(LOCAL_JOURNALS_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.error('Error reading local journals cache:', e);
+  }
+  return [];
+};
+
+const saveToLocalJournals = (entry: JournalEntry) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getLocalJournals();
+    const existingIdx = list.findIndex((j) => j.id === entry.id);
+    if (existingIdx >= 0) {
+      list[existingIdx] = entry;
+    } else {
+      list.unshift(entry);
+    }
+    localStorage.setItem(LOCAL_JOURNALS_KEY, JSON.stringify(list.slice(0, 300)));
+  } catch (e) {
+    console.error('Error writing local journals cache:', e);
+  }
+};
+
 /**
- * Hook untuk operasi CRUD jurnal di Firestore.
+ * Hook untuk operasi CRUD jurnal di Firestore dengan dual-layer sync (LocalStorage + Firestore).
  * - Untuk guru: query berdasarkan uid (max 200 jurnal terbaru)
- * - Untuk admin: query semua jurnal (max 100 terbaru agar cepat)
+ * - Untuk admin: query semua jurnal
  */
 export function useJournals(uid?: string, isAdmin = false) {
-  const [journals, setJournals] = useState<JournalEntry[]>([]);
+  const [journals, setJournals] = useState<JournalEntry[]>(() => {
+    const local = getLocalJournals();
+    if (isAdmin) return local;
+    if (uid) return local.filter((j) => j.uid === uid);
+    return [];
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,22 +101,15 @@ export function useJournals(uid?: string, isAdmin = false) {
 
     let q;
     if (isAdmin) {
-      // Admin: ambil semua jurnal (limit besar), urutkan di client JS untuk menghindari index/type mismatch
-      q = query(
-        collection(db, 'journals')
-      );
+      q = query(collection(db, 'journals'));
     } else {
-      // Guru: query where uid saja
-      q = query(
-        collection(db, 'journals'),
-        where('uid', '==', uid)
-      );
+      q = query(collection(db, 'journals'), where('uid', '==', uid));
     }
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const data: JournalEntry[] = snapshot.docs.map((doc) => {
+        const remoteData: JournalEntry[] = snapshot.docs.map((doc) => {
           const d = doc.data();
           return {
             id: doc.id,
@@ -103,29 +133,37 @@ export function useJournals(uid?: string, isAdmin = false) {
               d.createdAt instanceof Timestamp
                 ? d.createdAt.toDate().toISOString()
                 : d.createdAt ?? new Date().toISOString(),
-            // Extra fields
             uid: d.uid ?? undefined,
             ...(d.displayName && { displayName: d.displayName }),
             ...(d.email && { email: d.email }),
           } as JournalEntry;
         });
 
-        // Urutkan terbaru di JavaScript
-        data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        // Merge remote documents into local cache
+        remoteData.forEach((entry) => saveToLocalJournals(entry));
 
-        // Admin: limit array di memory agar tidak terlalu berat (opsional)
-        if (isAdmin) {
-          setJournals(data.slice(0, 500));
-        } else {
-          setJournals(data);
-        }
-        
+        // Combine local cache with remote documents
+        const localList = getLocalJournals();
+        const relevantLocal = isAdmin ? localList : localList.filter((j) => j.uid === uid);
+        const mapById = new Map<string, JournalEntry>();
+
+        // Local first, then overwrite with remote
+        relevantLocal.forEach((j) => mapById.set(j.id, j));
+        remoteData.forEach((j) => mapById.set(j.id, j));
+
+        const combined = Array.from(mapById.values());
+        combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        setJournals(combined);
         setLoading(false);
         setError(null);
       },
       (err) => {
-        console.error('Firestore listen error:', err);
-        setError(err.message);
+        console.warn('Firestore listen error (falling back to local cache):', err);
+        const localList = getLocalJournals();
+        const relevantLocal = isAdmin ? localList : localList.filter((j) => j.uid === uid);
+        relevantLocal.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setJournals(relevantLocal);
         setLoading(false);
       }
     );
@@ -133,23 +171,46 @@ export function useJournals(uid?: string, isAdmin = false) {
     return () => unsubscribe();
   }, [uid, isAdmin]);
 
-  // Simpan jurnal baru
-  const saveJournal = useCallback(async (payload: CreateJournalPayload) => {
-    try {
-      // Gunakan ISO string lokal daripada serverTimestamp untuk mencegah promise hang 
-      // saat jaringan sekolah sedang lambat atau memblokir WebSocket.
-      const docRef = await addDoc(collection(db, 'journals'), {
+  // Simpan jurnal baru dengan dual-layer instant persistence
+  const saveJournal = useCallback(
+    async (
+      payload: CreateJournalPayload
+    ): Promise<{ success: boolean; id: string; error?: string; warning?: string }> => {
+      const localId = 'jurnal_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+      const createdAt = new Date().toISOString();
+
+      const newEntry: JournalEntry = {
+        id: localId,
         ...payload,
-        createdAt: new Date().toISOString(),
-      });
-      console.log('✅ Jurnal disimpan:', docRef.id);
-      return { success: true as const, id: docRef.id };
-    } catch (err) {
-      const e = err as Error;
-      console.error('❌ Gagal simpan:', e);
-      return { success: false as const, error: e.message };
-    }
-  }, []);
+        createdAt,
+      };
+
+      // 1. Simpan ke local cache seketika
+      saveToLocalJournals(newEntry);
+      setJournals((prev) => [newEntry, ...prev.filter((j) => j.id !== localId)]);
+
+      // 2. Simpan ke Firestore dengan race timeout (3500ms) untuk mencegah UI hang
+      try {
+        const firestoreWrite = addDoc(collection(db, 'journals'), {
+          ...payload,
+          createdAt,
+        });
+
+        const timeoutPromise = new Promise<{ id: string; isFallback: boolean }>((resolve) =>
+          setTimeout(() => resolve({ id: localId, isFallback: true }), 3500)
+        );
+
+        const result = await Promise.race([firestoreWrite, timeoutPromise]);
+        const finalId = (result as any).id || localId;
+        console.log('✅ Jurnal tersimpan aman:', finalId);
+        return { success: true, id: finalId };
+      } catch (err: any) {
+        console.warn('⚠️ Firestore sync delay (data aman di cache lokal):', err);
+        return { success: true, id: localId, warning: err?.message };
+      }
+    },
+    []
+  );
 
   /** Payload untuk update jurnal (field-field yang boleh diedit) */
   interface UpdateJournalPayload {

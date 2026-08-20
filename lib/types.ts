@@ -19,8 +19,8 @@ export interface JournalEntry {
   createdAt: string;
   updatedAt?: string;
   uid?: string;
-  displayName?: string;
-  email?: string;
+  displayName?: string | null;
+  email?: string | null;
 }
 
 export interface GPSCoords {

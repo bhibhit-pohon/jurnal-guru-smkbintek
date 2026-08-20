@@ -779,25 +779,24 @@ export default function AdminDashboardPage() {
                     className="px-3 py-2 bg-white border border-[#E7E5E4] rounded-lg text-sm text-[#3e4947] focus:outline-none focus:border-[#005c55]"
                   >
                     <option value="">Semua Kelas</option>
-                    <option value="X-A">X-A</option>
-                    <option value="X-B">X-B</option>
-                    <option value="XI-A">XI-A</option>
-                    <option value="XI-B">XI-B</option>
-                    <option value="XII-A">XII-A</option>
-                    <option value="XII-C">XII-C</option>
+                    {kelasList.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
                   </select>
 
                   <select
                     value={filterMapel}
                     onChange={(e) => setFilterMapel(e.target.value)}
-                    className="px-3 py-2 bg-white border border-[#E7E5E4] rounded-lg text-sm text-[#3e4947] focus:outline-none focus:border-[#005c55]"
+                    className="px-3 py-2 bg-white border border-[#E7E5E4] rounded-lg text-sm text-[#3e4947] focus:outline-none focus:border-[#005c55] max-w-[200px] truncate"
                   >
                     <option value="">Semua Mapel</option>
-                    <option value="Matematika">Matematika</option>
-                    <option value="Bahasa Inggris">Bahasa Inggris</option>
-                    <option value="Fisika">Fisika</option>
-                    <option value="Teknik Komputer & Jaringan">TKJ</option>
-                    <option value="Rekayasa Perangkat Lunak">RPL</option>
+                    {mapelList.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
                   </select>
 
                   {(searchQuery || filterKelas || filterMapel || filterDate) && (

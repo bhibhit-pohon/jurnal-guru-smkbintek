@@ -320,22 +320,24 @@ export default function IsiJurnalPage() {
       const result = await saveJournal(payload);
       if (result.success) {
         setSaveStep('done');
+        showToast('✅ Alhamdulillah, Jurnal Mengajar Berhasil Disimpan!', 'success');
         setForm(INITIAL_FORM);
         if (sigRef.current) sigRef.current.clear();
-        // Redirect langsung — Firestore addDoc sudah confirmed
-        router.push('/riwayat-jurnal');
+        // Berikan jeda 800ms agar guru melihat konfirmasi sukses dengan jelas
+        setTimeout(() => {
+          router.push('/riwayat-jurnal');
+        }, 800);
       } else {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Gagal menyimpan ke server');
       }
     } catch (error: unknown) {
       const err = error as Error;
       console.error('❌ Gagal menyimpan:', err);
-      showToast(`Gagal menyimpan: ${err.message || 'Periksa koneksi internet'}`, 'error');
+      showToast(`⚠️ Gagal menyimpan: ${err.message || 'Periksa koneksi internet'}`, 'error');
       setSaveStep('idle');
-    } finally {
       setIsSaving(false);
     }
-  }, [user, form, coords, distance, isWithinRadius, getValidationErrors, saveSignature, saveJournal, showToast]);
+  }, [user, form, coords, distance, isWithinRadius, getValidationErrors, saveJournal, showToast, router]);
 
   /* ── Loading state ── */
   if (loading) {
@@ -883,19 +885,29 @@ export default function IsiJurnalPage() {
           type="button"
           onClick={handleSimpan}
           disabled={isSaving || !isWithinRadius}
-          className={`w-full text-sm leading-5 font-medium tracking-[0.01em] font-[Inter] py-4 rounded-full shadow-sm mt-2 transition-all active:scale-[0.98] duration-150 disabled:cursor-not-allowed ${isWithinRadius
+          className={`w-full text-sm leading-5 font-medium tracking-[0.01em] font-[Inter] py-4 rounded-full shadow-sm mt-2 transition-all active:scale-[0.98] duration-150 disabled:cursor-not-allowed ${
+            saveStep === 'done'
+              ? 'bg-[#0f766e] text-white shadow-md scale-[1.01]'
+              : isWithinRadius
               ? 'bg-[#005c55] text-white hover:opacity-90 disabled:opacity-50'
               : 'bg-[#E7E5E4] text-[#6e7977] cursor-not-allowed'
-            }`}
+          }`}
         >
           {isSaving ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              {saveStep === 'uploading' ? 'Mengirim ke server...' : 'Menyimpan...'}
-            </span>
+            saveStep === 'done' ? (
+              <span className="flex items-center justify-center gap-2 font-semibold">
+                <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                Tersimpan! Mengalihkan ke Riwayat...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Menyimpan data jurnal...
+              </span>
+            )
           ) : !isWithinRadius ? (
             <span className="flex items-center justify-center gap-2">
               <span className="material-symbols-outlined text-[18px]">lock</span>
