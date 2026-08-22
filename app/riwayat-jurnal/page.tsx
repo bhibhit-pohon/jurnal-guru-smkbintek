@@ -26,14 +26,14 @@ function getMonday(d: Date): Date {
 
 /* ── Helper: format date range ── */
 function formatWeekRange(monday: Date): string {
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
+  const saturday = new Date(monday);
+  saturday.setDate(monday.getDate() + 5);
 
   const optMonth: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
   const optFull: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
 
   const startStr = monday.toLocaleDateString('id-ID', optMonth);
-  const endStr = friday.toLocaleDateString('id-ID', optFull);
+  const endStr = saturday.toLocaleDateString('id-ID', optFull);
 
   return `${startStr} – ${endStr}`;
 }
@@ -125,16 +125,24 @@ export default function RiwayatJurnalPage() {
     return isSameDay(currentMonday, thisMonday);
   }, [currentMonday]);
 
-  /* ── Build 5 weekdays (Mon-Fri) ── */
+  /* ── Build 6 weekdays (Senin s/d Sabtu) + Minggu jika ada data ── */
   const weekDays = useMemo(() => {
     const days: Date[] = [];
-    for (let i = 0; i < 5; i++) {
+    // 6 hari kerja sekolah (Senin - Sabtu)
+    for (let i = 0; i < 6; i++) {
       const day = new Date(currentMonday);
       day.setDate(currentMonday.getDate() + i);
       days.push(day);
     }
+    // Jika ada jurnal di hari Minggu pada pekan ini, sertakan juga hari Minggu
+    const sunday = new Date(currentMonday);
+    sunday.setDate(currentMonday.getDate() + 6);
+    const hasSundayJournal = allJournals.some((j) => isSameDay(new Date(j.createdAt), sunday));
+    if (hasSundayJournal) {
+      days.push(sunday);
+    }
     return days;
-  }, [currentMonday]);
+  }, [currentMonday, allJournals]);
 
   /* ── Match journals to days ── */
   const journalsByDay = useMemo(() => {

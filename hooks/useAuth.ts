@@ -8,15 +8,28 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth';
-import { auth, googleProvider } from '@/lib/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, googleProvider, db } from '@/lib/firebase';
 import type { User } from '@/lib/types';
 
+function getCustomAvatar(uid: string, fallback: string | null): string | null {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const saved = localStorage.getItem(`user_avatar_${uid}`);
+    if (saved) return saved;
+  } catch (e) {
+    console.warn('Error reading custom avatar from localStorage:', e);
+  }
+  return fallback;
+}
+
 function mapFirebaseUser(fbUser: FirebaseUser): User {
+  const customAvatar = getCustomAvatar(fbUser.uid, fbUser.photoURL);
   return {
     uid: fbUser.uid,
     displayName: fbUser.displayName,
     email: fbUser.email,
-    photoURL: fbUser.photoURL,
+    photoURL: customAvatar,
   };
 }
 
@@ -26,9 +39,24 @@ export function useAuth() {
 
   // Listen to auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
-        setUser(mapFirebaseUser(fbUser));
+        let initialUser = mapFirebaseUser(fbUser);
+        setUser(initialUser);
+
+        // Background check Firestore for custom avatar if not in localStorage
+        try {
+          if (!localStorage.getItem(`user_avatar_${fbUser.uid}`)) {
+            const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
+            if (userDoc.exists() && userDoc.data()?.photoURL) {
+              const cloudPhoto = userDoc.data().photoURL;
+              localStorage.setItem(`user_avatar_${fbUser.uid}`, cloudPhoto);
+              setUser((prev) => (prev ? { ...prev, photoURL: cloudPhoto } : prev));
+            }
+          }
+        } catch (e) {
+          // Silent catch if offline
+        }
       } else {
         setUser(null);
       }
@@ -63,15 +91,45 @@ export function useAuth() {
     async (displayName: string, photoURL?: string | null) => {
       if (!auth.currentUser) return { success: false as const, error: 'Pengguna tidak terautentikasi.' };
       try {
+        const uid = auth.currentUser.uid;
+        const isBase64 = photoURL && photoURL.startsWith('data:');
+
+        // 1. Update Firebase Auth profile (photoURL only if short standard URL)
         await updateProfile(auth.currentUser, {
           displayName,
-          photoURL: photoURL !== undefined ? photoURL : auth.currentUser.photoURL,
+          photoURL: isBase64 ? auth.currentUser.photoURL : (photoURL !== undefined ? photoURL : auth.currentUser.photoURL),
         });
-        setUser(mapFirebaseUser(auth.currentUser));
+
+        // 2. If photo is custom avatar (base64), persist to localStorage & Firestore doc
+        if (photoURL) {
+          try {
+            localStorage.setItem(`user_avatar_${uid}`, photoURL);
+            await setDoc(
+              doc(db, 'users', uid),
+              {
+                displayName,
+                photoURL,
+                email: auth.currentUser.email,
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true }
+            );
+          } catch (storageErr) {
+            console.warn('Custom avatar firestore sync warning:', storageErr);
+          }
+        }
+
+        setUser({
+          uid,
+          displayName,
+          email: auth.currentUser.email,
+          photoURL: photoURL || auth.currentUser.photoURL,
+        });
+
         return { success: true as const };
       } catch (error: unknown) {
         const err = error as { message?: string };
-        return { success: false as const, error: err.message || 'Gagal mengorientasi profil.' };
+        return { success: false as const, error: err.message || 'Gagal memperbarui profil.' };
       }
     },
     []

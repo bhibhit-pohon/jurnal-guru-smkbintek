@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
-  addDoc,
   doc,
+  setDoc,
   getDoc,
   updateDoc,
   deleteDoc,
@@ -45,7 +45,7 @@ export interface CreateJournalPayload {
   email: string | null;
 }
 
-const LOCAL_JOURNALS_KEY = 'jurnal_all_entries_cache';
+const LOCAL_JOURNALS_KEY = 'jurnal_all_entries_cache_v2';
 
 const getLocalJournals = (): JournalEntry[] => {
   if (typeof window === 'undefined') return [];
@@ -53,7 +53,16 @@ const getLocalJournals = (): JournalEntry[] => {
     const data = localStorage.getItem(LOCAL_JOURNALS_KEY);
     if (data) {
       const parsed = JSON.parse(data);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        // De-duplicate by id
+        const map = new Map<string, JournalEntry>();
+        parsed.forEach((item) => {
+          if (item && item.id) {
+            map.set(item.id, item);
+          }
+        });
+        return Array.from(map.values());
+      }
     }
   } catch (e) {
     console.error('Error reading local journals cache:', e);
@@ -109,10 +118,10 @@ export function useJournals(uid?: string, isAdmin = false) {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const remoteData: JournalEntry[] = snapshot.docs.map((doc) => {
-          const d = doc.data();
+        const remoteData: JournalEntry[] = snapshot.docs.map((docSnap) => {
+          const d = docSnap.data();
           return {
-            id: doc.id,
+            id: docSnap.id,
             mapel: d.mapel ?? '',
             kelas: d.kelas ?? '',
             ruang: d.ruang ?? '',
@@ -171,42 +180,43 @@ export function useJournals(uid?: string, isAdmin = false) {
     return () => unsubscribe();
   }, [uid, isAdmin]);
 
-  // Simpan jurnal baru dengan dual-layer instant persistence
+  // Simpan jurnal baru dengan ID Firestore terpadu (anti-duplikasi 100%)
   const saveJournal = useCallback(
     async (
       payload: CreateJournalPayload
     ): Promise<{ success: boolean; id: string; error?: string; warning?: string }> => {
-      const localId = 'jurnal_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+      // 1. Buat referensi doc Firestore terlebih dahulu agar ID lokal & server identik 100%
+      const docRef = doc(collection(db, 'journals'));
+      const journalId = docRef.id;
       const createdAt = new Date().toISOString();
 
       const newEntry: JournalEntry = {
-        id: localId,
+        id: journalId,
         ...payload,
         createdAt,
       };
 
-      // 1. Simpan ke local cache seketika
+      // 2. Simpan ke local cache seketika dengan ID yang sama persis
       saveToLocalJournals(newEntry);
-      setJournals((prev) => [newEntry, ...prev.filter((j) => j.id !== localId)]);
+      setJournals((prev) => [newEntry, ...prev.filter((j) => j.id !== journalId)]);
 
-      // 2. Simpan ke Firestore dengan race timeout (3500ms) untuk mencegah UI hang
+      // 3. Simpan ke Firestore via setDoc dengan race timeout aman (3500ms)
       try {
-        const firestoreWrite = addDoc(collection(db, 'journals'), {
+        const firestoreWrite = setDoc(docRef, {
           ...payload,
           createdAt,
         });
 
         const timeoutPromise = new Promise<{ id: string; isFallback: boolean }>((resolve) =>
-          setTimeout(() => resolve({ id: localId, isFallback: true }), 3500)
+          setTimeout(() => resolve({ id: journalId, isFallback: true }), 3500)
         );
 
-        const result = await Promise.race([firestoreWrite, timeoutPromise]);
-        const finalId = (result as any).id || localId;
-        console.log('✅ Jurnal tersimpan aman:', finalId);
-        return { success: true, id: finalId };
+        await Promise.race([firestoreWrite, timeoutPromise]);
+        console.log('✅ Jurnal tersimpan aman dengan ID tunggal:', journalId);
+        return { success: true, id: journalId };
       } catch (err: any) {
         console.warn('⚠️ Firestore sync delay (data aman di cache lokal):', err);
-        return { success: true, id: localId, warning: err?.message };
+        return { success: true, id: journalId, warning: err?.message };
       }
     },
     []

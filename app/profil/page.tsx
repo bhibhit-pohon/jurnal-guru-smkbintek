@@ -100,21 +100,70 @@ export default function ProfilPage() {
     router.replace('/login');
   };
 
+  /**
+   * Kompresi dan auto-crop foto avatar profil menjadi rasio persegi 1:1 (~160x160px).
+   * Menghasilkan string Base64 sangat ringan (~10-20KB) sehingga bebas error "Photo URL too long".
+   */
+  const compressAvatarImage = (file: File): Promise<string> => {
+    const TARGET_SIZE = 160;
+    const QUALITY = 0.75;
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = TARGET_SIZE;
+          canvas.height = TARGET_SIZE;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(event.target?.result as string);
+            return;
+          }
+
+          // Center-crop ke rasio 1:1 persegi
+          const minDim = Math.min(img.width, img.height);
+          const startX = (img.width - minDim) / 2;
+          const startY = (img.height - minDim) / 2;
+
+          ctx.drawImage(
+            img,
+            startX,
+            startY,
+            minDim,
+            minDim,
+            0,
+            0,
+            TARGET_SIZE,
+            TARGET_SIZE
+          );
+
+          const result = canvas.toDataURL('image/jpeg', QUALITY);
+          resolve(result);
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
   /* ── Image Upload Handler ── */
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('Ukuran foto maksimal 2MB', 'error');
-      return;
+    try {
+      showToast('Mengoptimalkan foto profil...', 'info');
+      const compressed = await compressAvatarImage(file);
+      setEditPhotoURL(compressed);
+      showToast('Foto profil siap disimpan!', 'success');
+    } catch (err) {
+      console.error('Gagal memproses foto profil:', err);
+      showToast('Gagal memproses foto. Silakan coba gambar lain.', 'error');
     }
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setEditPhotoURL(ev.target?.result as string);
-    };
-    reader.readAsDataURL(file);
   };
 
   /* ── Save Profile Handler ── */
@@ -130,7 +179,7 @@ export default function ProfilPage() {
     setIsUpdating(false);
 
     if (res.success) {
-      showToast('Profil berhasil diperbarui!', 'success');
+      showToast('✅ Profil berhasil diperbarui!', 'success');
       setIsEditing(false);
     } else {
       showToast(res.error || 'Gagal memperbarui profil', 'error');

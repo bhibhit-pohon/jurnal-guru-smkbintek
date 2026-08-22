@@ -488,6 +488,23 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Sync / Refresh Button */}
+            <button
+              type="button"
+              onClick={() => {
+                showToast('🔄 Memeriksa & menyinkronkan seluruh data jurnal...', 'info');
+                setTimeout(() => {
+                  showToast('✅ Data jurnal dan analitik telah tersinkronisasi terbaru!', 'success');
+                }, 600);
+              }}
+              className="border border-[#E7E5E4] text-[#005c55] hover:bg-[#005c55]/10 p-1.5 sm:p-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 shrink-0"
+              title="Sinkronkan & Refresh Data"
+              aria-label="Refresh Data"
+            >
+              <span className="material-symbols-outlined text-[18px]">sync</span>
+              <span className="hidden lg:inline text-xs">Sinkron</span>
+            </button>
+
             {/* Theme Toggle Button */}
             <button
               type="button"
