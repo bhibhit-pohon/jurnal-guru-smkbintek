@@ -13,6 +13,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      network: host
       args:
         - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
         - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
