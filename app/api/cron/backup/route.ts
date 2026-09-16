@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import * as admin from 'firebase-admin';
+import { getApps, initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import * as fs from 'fs/promises';
 import { readFileSync } from 'fs';
 import * as path from 'path';
 
 // Pastikan inisialisasi Firebase Admin hanya terjadi sekali
-if (!admin.apps.length) {
+if (!getApps().length) {
   try {
     // Membaca file kredensial Service Account.
     // File ini HARUS diletakkan di root project dengan nama 'serviceAccountKey.json'
@@ -14,15 +15,15 @@ if (!admin.apps.length) {
     const serviceAccountContent = readFileSync(serviceAccountPath, 'utf-8');
     const serviceAccount = JSON.parse(serviceAccountContent);
 
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+    initializeApp({
+      credential: cert(serviceAccount)
     });
   } catch (error) {
     console.error('Firebase Admin Initialization Error: Pastikan serviceAccountKey.json tersedia.', error);
   }
 }
 
-const db = admin.apps.length ? admin.firestore() : null;
+const db = getApps().length ? getFirestore() : null;
 
 export async function GET(request: Request) {
   // Simple authentication for the cron job using a query parameter
