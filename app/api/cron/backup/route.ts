@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       const docsToDelete = journals.slice(0, deleteCount);
 
       const batch = db.batch();
-      docsToDelete.forEach(docData => {
+      docsToDelete.forEach((docData: any) => {
         const docRef = db.collection('journals').doc(docData.id);
         batch.delete(docRef);
       });
