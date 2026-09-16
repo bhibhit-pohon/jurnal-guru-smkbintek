@@ -2,13 +2,21 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
+// Helper untuk membaca env vars (mendukung Next.js build-time & Docker runtime)
+const getEnv = (key: string) => {
+  if (typeof window !== 'undefined' && (window as any).__ENV) {
+    return (window as any).__ENV[key] || process.env[key];
+  }
+  return process.env[key];
+};
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'demo-api-key',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'demo.firebaseapp.com',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-project',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'demo.appspot.com',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '123456789',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:123456789:web:abcdef',
+  apiKey: getEnv('NEXT_PUBLIC_FIREBASE_API_KEY') || 'demo-api-key',
+  authDomain: getEnv('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN') || 'demo.firebaseapp.com',
+  projectId: getEnv('NEXT_PUBLIC_FIREBASE_PROJECT_ID') || 'demo-project',
+  storageBucket: getEnv('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET') || 'demo.appspot.com',
+  messagingSenderId: getEnv('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID') || '123456789',
+  appId: getEnv('NEXT_PUBLIC_FIREBASE_APP_ID') || '1:123456789:web:abcdef',
 };
 
 // Initialize Firebase — prevent duplicate initialization in dev (HMR)
