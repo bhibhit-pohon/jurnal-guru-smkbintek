@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import * as fs from 'fs/promises';
+import { readFileSync } from 'fs';
 import * as path from 'path';
 
 // Pastikan inisialisasi Firebase Admin hanya terjadi sekali
@@ -10,7 +11,8 @@ if (!admin.apps.length) {
     // File ini HARUS diletakkan di root project dengan nama 'serviceAccountKey.json'
     // atau path nya diset via environment variable FIREBASE_SERVICE_ACCOUNT_PATH
     const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || path.join(process.cwd(), 'serviceAccountKey.json');
-    const serviceAccount = require(serviceAccountPath);
+    const serviceAccountContent = readFileSync(serviceAccountPath, 'utf-8');
+    const serviceAccount = JSON.parse(serviceAccountContent);
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
