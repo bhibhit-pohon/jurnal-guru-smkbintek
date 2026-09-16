@@ -147,7 +147,7 @@ export const SCHOOL_COORDS = {
   longitude: 109.22089476611995,
   name: 'SMK Bina Teknologi Purwokerto',
   /** Radius toleransi dalam meter */
-  toleranceRadius: 50,
+  toleranceRadius: 100,
 };
 
 /**

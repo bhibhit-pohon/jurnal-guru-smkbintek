@@ -277,7 +277,7 @@ export default function AdminDashboardPage() {
       Alpha: j.jumlahAlpha,
       'Nama Siswa Absen': j.namaSiswaAbsen || '-',
       'Catatan Jurnal': j.catatan || '-',
-      'Status Lokasi': j.lokasiValid ? 'Valid (≤ 50m)' : 'Di Luar Radius',
+      'Status Lokasi': j.lokasiValid ? 'Valid (≤ 100m)' : 'Di Luar Radius',
       'Jarak dari Sekolah': `${j.jarakDariSekolah} meter`,
     }));
 

@@ -259,7 +259,7 @@ export default function IsiJurnalPage() {
     if (!form.ruang) errors.push('Ruang');
     if (form.jamMulai === null || form.jamSelesai === null) errors.push('Rentang Jam');
     if (!form.fotoKelas) errors.push('Foto Kelas');
-    if (!isWithinRadius) errors.push('Lokasi (di luar radius 50m)');
+    if (!isWithinRadius) errors.push('Lokasi (di luar radius 100m)');
     return errors;
   }, [form, isWithinRadius]);
 
