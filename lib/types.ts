@@ -33,6 +33,7 @@ export interface User {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
+  hasConfirmedProfile?: boolean;
 }
 
 export type ActiveTab = 'riwayat' | 'isi-jurnal' | 'map';

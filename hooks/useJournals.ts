@@ -100,6 +100,7 @@ export function useJournals(uid?: string, isAdmin = false) {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Real-time listener
   useEffect(() => {
@@ -118,6 +119,8 @@ export function useJournals(uid?: string, isAdmin = false) {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        setIsSyncing(snapshot.metadata.hasPendingWrites);
+
         const remoteData: JournalEntry[] = snapshot.docs.map((docSnap) => {
           const d = docSnap.data();
           return {
@@ -314,5 +317,5 @@ export function useJournals(uid?: string, isAdmin = false) {
     []
   );
 
-  return { journals, loading, error, saveJournal, updateJournal, deleteJournal };
+  return { journals, loading, error, isSyncing, saveJournal, updateJournal, deleteJournal };
 }

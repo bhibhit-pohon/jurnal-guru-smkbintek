@@ -1,0 +1,36 @@
+[debug] [2026-09-14T02:52:38.771Z] ----------------------------------------------------------------------
+[debug] [2026-09-14T02:52:38.773Z] Command:       /opt/homebrew/Cellar/node/25.6.1_1/bin/node /Users/mac/.npm/_npx/7750544ccf494d8b/node_modules/.bin/firebase --token 
+Error: Cannot run login:ci in non-interactive mode. projects:list
+[debug] [2026-09-14T02:52:38.773Z] CLI Version:   15.30.0
+[debug] [2026-09-14T02:52:38.773Z] Platform:      darwin
+[debug] [2026-09-14T02:52:38.773Z] Node Version:  v25.6.1
+[debug] [2026-09-14T02:52:38.773Z] Detected Agent: antigravity
+[debug] [2026-09-14T02:52:38.774Z] Time:          Mon Sep 14 2026 09:52:38 GMT+0700 (Western Indonesia Time)
+[debug] [2026-09-14T02:52:38.774Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-09-14T02:52:38.778Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-14T02:52:38.778Z] > authorizing via --token option
+[warn] ⚠  Authenticating with `--token` is deprecated and will be removed in a future major version of `firebase-tools`. Instead, use a service account key with `GOOGLE_APPLICATION_CREDENTIALS`: https://cloud.google.com/docs/authentication/getting-started 
+[debug] [2026-09-14T02:52:38.802Z] No OAuth tokens found
+[debug] [2026-09-14T02:52:38.802Z] No OAuth tokens found
+[debug] [2026-09-14T02:52:38.802Z] > refreshing access token with scopes: []
+[debug] [2026-09-14T02:52:38.805Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-09-14T02:52:38.805Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-14T02:52:39.127Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2026-09-14T02:52:39.127Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-09-14T02:52:39.127Z] Headers.set: "Bearer 
+Error: Cannot run login:ci in non-interactive mode." is an invalid header value.
+[debug] [2026-09-14T02:52:39.131Z] TypeError: Headers.set: "Bearer 
+Error: Cannot run login:ci in non-interactive mode." is an invalid header value.
+    at webidl.errors.exception (node:internal/deps/undici/undici:4720:14)
+    at webidl.errors.invalidArgument (node:internal/deps/undici/undici:4731:28)
+    at _Headers.set (node:internal/deps/undici/undici:10434:31)
+    at Client.addAuthHeader (/Users/mac/.npm/_npx/7750544ccf494d8b/node_modules/firebase-tools/lib/apiv2.js:211:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Client.request (/Users/mac/.npm/_npx/7750544ccf494d8b/node_modules/firebase-tools/lib/apiv2.js:156:34)
+    at async getProjectPage (/Users/mac/.npm/_npx/7750544ccf494d8b/node_modules/firebase-tools/lib/management/projects.js:287:17)
+    at async getFirebaseProjectPage (/Users/mac/.npm/_npx/7750544ccf494d8b/node_modules/firebase-tools/lib/management/projects.js:304:23)
+    at async listFirebaseProjects (/Users/mac/.npm/_npx/7750544ccf494d8b/node_modules/firebase-tools/lib/management/projects.js:333:29)
+    at async Command.actionFn (/Users/mac/.npm/_npx/7750544ccf494d8b/node_modules/firebase-tools/lib/commands/projects-list.js:51:20)
+[error] 
+[error] Error: Failed to list Firebase projects. See firebase-debug.log for more info.

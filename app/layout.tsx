@@ -33,6 +33,7 @@ export const viewport: Viewport = {
 };
 
 import { ThemeProvider } from "@/hooks/useTheme";
+import ForceProfileModal from "@/components/layout/ForceProfileModal";
 
 export default function RootLayout({
   children,
@@ -81,7 +82,10 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col font-sans bg-[#f9f9f8] text-[#1a1c1c] dark:bg-[#121414] dark:text-[#f1f5f5] transition-colors duration-200">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <ForceProfileModal />
+        </ThemeProvider>
       </body>
     </html>
   );

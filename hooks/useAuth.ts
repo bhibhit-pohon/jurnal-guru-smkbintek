@@ -42,17 +42,26 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         let initialUser = mapFirebaseUser(fbUser);
+        initialUser.hasConfirmedProfile = false; // default to false
         setUser(initialUser);
 
-        // Background check Firestore for custom avatar if not in localStorage
+        // Background check Firestore for custom avatar & profile confirmation
         try {
-          if (!localStorage.getItem(`user_avatar_${fbUser.uid}`)) {
-            const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
-            if (userDoc.exists() && userDoc.data()?.photoURL) {
-              const cloudPhoto = userDoc.data().photoURL;
+          const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            const cloudPhoto = data?.photoURL;
+            const hasConfirmed = data?.hasConfirmedProfile === true;
+
+            if (cloudPhoto) {
               localStorage.setItem(`user_avatar_${fbUser.uid}`, cloudPhoto);
-              setUser((prev) => (prev ? { ...prev, photoURL: cloudPhoto } : prev));
             }
+            
+            setUser((prev) => (prev ? { 
+              ...prev, 
+              photoURL: cloudPhoto || prev.photoURL,
+              hasConfirmedProfile: hasConfirmed 
+            } : prev));
           }
         } catch (e) {
           // Silent catch if offline
@@ -70,8 +79,10 @@ export function useAuth() {
     setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      setUser(mapFirebaseUser(result.user));
-      return { success: true as const, user: mapFirebaseUser(result.user) };
+      const mappedUser = mapFirebaseUser(result.user);
+      setUser(mappedUser);
+      // Wait for the onAuthStateChanged listener to fetch `hasConfirmedProfile`
+      return { success: true as const, user: mappedUser };
     } catch (error: unknown) {
       const firebaseError = error as { code?: string; message?: string };
       // User closed the popup or cancelled
@@ -100,23 +111,29 @@ export function useAuth() {
           photoURL: isBase64 ? auth.currentUser.photoURL : (photoURL !== undefined ? photoURL : auth.currentUser.photoURL),
         });
 
-        // 2. If photo is custom avatar (base64), persist to localStorage & Firestore doc
+        // 2. Persist to localStorage & Firestore doc
         if (photoURL) {
           try {
             localStorage.setItem(`user_avatar_${uid}`, photoURL);
-            await setDoc(
-              doc(db, 'users', uid),
-              {
-                displayName,
-                photoURL,
-                email: auth.currentUser.email,
-                updatedAt: new Date().toISOString(),
-              },
-              { merge: true }
-            );
           } catch (storageErr) {
-            console.warn('Custom avatar firestore sync warning:', storageErr);
+            console.warn('Local storage sync warning:', storageErr);
           }
+        }
+
+        try {
+          await setDoc(
+            doc(db, 'users', uid),
+            {
+              displayName,
+              ...(photoURL && { photoURL }),
+              email: auth.currentUser.email,
+              hasConfirmedProfile: true, // Mark as confirmed!
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        } catch (storageErr) {
+          console.warn('Firestore sync warning:', storageErr);
         }
 
         setUser({
@@ -124,6 +141,7 @@ export function useAuth() {
           displayName,
           email: auth.currentUser.email,
           photoURL: photoURL || auth.currentUser.photoURL,
+          hasConfirmedProfile: true,
         });
 
         return { success: true as const };
