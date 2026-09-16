@@ -352,7 +352,7 @@ export default function EditJournalModal({ journal, onClose, onSave }: EditJourn
           {/* Catatan */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium font-[Inter] text-[#3e4947]">
-              Catatan Jurnal
+              Materi dan Kegiatan Pembelajaran
             </label>
             <textarea
               value={catatan}

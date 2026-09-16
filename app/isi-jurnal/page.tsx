@@ -672,7 +672,7 @@ export default function IsiJurnalPage() {
             {/* Catatan */}
             <div className="flex flex-col gap-1">
               <label className="text-xs leading-4 font-medium font-[Inter] text-[#3e4947]">
-                Catatan Jurnal
+                Materi dan Kegiatan Pembelajaran
               </label>
               <textarea
                 value={form.catatan}

@@ -276,7 +276,7 @@ export default function AdminDashboardPage() {
       Izin: j.jumlahIzin,
       Alpha: j.jumlahAlpha,
       'Nama Siswa Absen': j.namaSiswaAbsen || '-',
-      'Catatan Jurnal': j.catatan || '-',
+      'Materi dan Kegiatan Pembelajaran': j.catatan || '-',
       'Status Lokasi': j.lokasiValid ? 'Valid (≤ 100m)' : 'Di Luar Radius',
       'Jarak dari Sekolah': `${j.jarakDariSekolah} meter`,
     }));
@@ -842,7 +842,7 @@ export default function AdminDashboardPage() {
                       <th className="py-3 px-4">Nama Guru</th>
                       <th className="py-3 px-4">Mapel & Kelas</th>
                       <th className="py-3 px-4 text-center">Kehadiran Siswa</th>
-                      <th className="py-3 px-4">Catatan Jurnal</th>
+                      <th className="py-3 px-4">Materi dan Kegiatan Pembelajaran</th>
                       <th className="py-3 px-4">Status GPS</th>
                       <th className="py-3 px-4 text-center">Bukti</th>
                     </tr>
@@ -1521,7 +1521,7 @@ export default function AdminDashboardPage() {
 
               {/* Catatan */}
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-[#6e7977] uppercase">Catatan Jurnal Kelas</span>
+                <span className="text-xs font-semibold text-[#6e7977] uppercase">Materi dan Kegiatan Pembelajaran</span>
                 <p className="text-sm bg-[#F5F5F4] p-3 rounded-lg border border-[#E7E5E4] leading-relaxed">
                   {selectedJournal.catatan || 'Tidak ada catatan.'}
                 </p>
