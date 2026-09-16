@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: 'Tidak ada data jurnal untuk di-backup.' });
     }
 
-    const journals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const journals = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 
     // 2. Simpan ke dalam file backup lokal
     const backupDir = path.join(process.cwd(), 'backups');
