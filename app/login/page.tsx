@@ -7,9 +7,20 @@ import { isAdminEmail } from '@/lib/firebase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signInWithGoogle, loading } = useAuth();
+  const { user, loading, signInWithGoogle } = useAuth();
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'info' } | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
+
+  // Auto-redirect jika sudah login
+  useEffect(() => {
+    if (!loading && user) {
+      if (isAdminEmail(user.email)) {
+        router.push('/admin');
+      } else {
+        router.push('/riwayat-jurnal');
+      }
+    }
+  }, [user, loading, router]);
 
   const showToast = (message: string, type: 'error' | 'info' = 'error') => {
     setToast({ message, type });
@@ -23,7 +34,6 @@ export default function LoginPage() {
     const result = await signInWithGoogle();
 
     if (result.success) {
-      // Redirect berdasarkan role: admin → /admin, guru → /riwayat-jurnal
       if (isAdminEmail(result.user.email)) {
         router.push('/admin');
       } else {
@@ -38,6 +48,11 @@ export default function LoginPage() {
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     showToast('Login dengan email belum tersedia. Silakan gunakan "Masuk dengan Google".', 'info');
+  };
+
+  const handleAdminLinkClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    showToast('Sistem otomatis mendeteksi Admin. Silakan "Masuk dengan Google" saja.', 'info');
   };
 
   return (
@@ -244,13 +259,13 @@ export default function LoginPage() {
               </a>
             </p>
             <div className="pt-2 border-t border-[#bdc9c6]/30">
-              <a
-                href="/admin"
-                className="text-xs font-semibold text-[#005c55] hover:underline flex items-center justify-center gap-1"
+              <button
+                onClick={handleAdminLinkClick}
+                className="text-xs font-semibold text-[#005c55] hover:underline flex items-center justify-center gap-1 w-full"
               >
                 <span className="material-symbols-outlined text-[16px]">desktop_windows</span>
                 Buka Dashboard Admin (Desktop)
-              </a>
+              </button>
             </div>
           </footer>
         </main>
