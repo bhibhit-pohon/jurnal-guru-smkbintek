@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://jurnal.smkbintekpwt.sch.id"),
   title: "Jurnal Guru Online | SMK Bina Teknologi Purwokerto",
   description:
     "Aplikasi pencatatan jurnal mengajar harian untuk guru SMK Bina Teknologi Purwokerto. Catat kehadiran, materi, dan dokumentasi pembelajaran secara digital.",
